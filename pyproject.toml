@@ -1,10 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "nmdc-fastmcp"
+name = "nmdc-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "MCP tool for querying NMDC API"
 readme = "README.md"
+authors = [
+    {name = "Chris Mungall", email = "cjmungall@lbl.gov"},
+]
 requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=2.7.1",
     "requests>=2.32.4",
 ]
+
+[dependency-groups]
+dev = [
+  "pytest",
+  "black",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/username/nmdc-mcp"
+"Bug Tracker" = "https://github.com/username/nmdc-mcp/issues"
+
+[project.scripts]
+nmdc-mcp = "nmdc_mcp.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nmdc_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
