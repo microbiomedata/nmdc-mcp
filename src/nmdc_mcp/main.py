@@ -11,9 +11,7 @@ from nmdc_mcp.tools import (
 
 
 # Create the FastMCP instance at module level
-mcp = FastMCP(
-    "nmdc_mcp", description="Querying records in the NMDC database",
-)
+mcp = FastMCP("nmdc_mcp")
 
 # Register all tools
 mcp.tool(get_samples_in_elevation_range)
