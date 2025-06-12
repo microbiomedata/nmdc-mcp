@@ -58,7 +58,6 @@ def fetch_nmdc_biosample_records_paged(
 
     if filter_criteria:
         params["filter"] = json.dumps(filter_criteria)
-        pass
 
     if additional_params:
         params.update(additional_params)
@@ -88,3 +87,5 @@ def fetch_nmdc_biosample_records_paged(
             break
 
     return all_records
+
+
