@@ -3,8 +3,8 @@
 # This module contains tools that consume the generic API wrapper functions in
 # nmdc_mcp/api.py and constrain/transform them based on use cases/applications
 ################################################################################
-from typing import Any, Dict, List
-from .api import fetch_nmdc_biosample_records_paged
+from typing import Any, Dict, List, Optional
+from .api import fetch_nmdc_biosample_records_paged, fetch_taxa_abundance_data
 
 
 def get_samples_in_elevation_range(
@@ -57,4 +57,33 @@ def get_samples_within_lat_lon_bounding_box(
         max_records=10,
     )
 
+    return records
+
+
+def get_sample_taxonomic_profile(
+    sample_id: str,
+    rank: Optional[str] = None,
+    min_abundance: float = 0.001,
+    max_records: int = 50
+) -> List[Dict[str, Any]]:
+    """
+    Get the taxonomic profile for a specific biosample.
+    
+    Args:
+        sample_id: The ID of the biosample to analyze
+        rank: Optional taxonomic rank to filter by (e.g., 'phylum', 'genus')
+        min_abundance: Minimum relative abundance threshold (default: 0.001 or 0.1%)
+        max_records: Maximum number of records to return
+        
+    Returns:
+        List of taxonomic records for the specified sample, optionally filtered by rank
+    """
+    records = fetch_taxa_abundance_data(
+        sample_id=sample_id,
+        taxonomy_level=rank,
+        min_abundance=min_abundance,
+        max_records=max_records,
+        verbose=True
+    )
+    
     return records
