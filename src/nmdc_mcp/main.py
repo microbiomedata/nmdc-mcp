@@ -7,7 +7,7 @@ from fastmcp import FastMCP
 from nmdc_mcp.tools import (
     get_samples_in_elevation_range,
     get_samples_within_lat_lon_bounding_box,
-    get_sample_taxonomic_profile,
+    get_samples_by_ecosystem
 )
 
 
@@ -17,7 +17,7 @@ mcp = FastMCP("nmdc_mcp")
 # Register all tools
 mcp.tool(get_samples_in_elevation_range)
 mcp.tool(get_samples_within_lat_lon_bounding_box)
-mcp.tool(get_sample_taxonomic_profile)
+mcp.tool(get_samples_by_ecosystem)
 
 
 def main():
