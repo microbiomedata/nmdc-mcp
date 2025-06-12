@@ -6,6 +6,7 @@
 # we should use the https://github.com/microbiomedata/nmdc_api_utilities package
 # so that we are not duplicating code that already exists in the NMDC ecosystem.
 ################################################################################
+import json
 from typing import Any, Dict, List, Optional, Union
 import requests
 
@@ -32,7 +33,6 @@ def fetch_nmdc_biosample_records_paged(
         page_token: Token for retrieving a specific page of results, typically
             obtained from a previous response.
         filter_criteria: MongoDB-style query dictionary for filtering results.
-            Currently a placeholder for future implementation.
         additional_params: Additional query parameters to include in the API request.
         max_records: Maximum total number of records to retrieve across all pages.
         verbose: If True, print progress information during retrieval.
@@ -58,7 +58,7 @@ def fetch_nmdc_biosample_records_paged(
 
     # Placeholder: Filter criteria would normally be serialized to JSON and added here.
     if filter_criteria:
-        # params["filter"] = json.dumps(filter_criteria)
+        params["filter"] = json.dumps(filter_criteria)
         pass
 
     if additional_params:
