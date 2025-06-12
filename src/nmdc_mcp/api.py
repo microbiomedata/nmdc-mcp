@@ -56,7 +56,6 @@ def fetch_nmdc_biosample_records_paged(
     if page_token:
         params["page_token"] = page_token
 
-    # Placeholder: Filter criteria would normally be serialized to JSON and added here.
     if filter_criteria:
         params["filter"] = json.dumps(filter_criteria)
         pass
