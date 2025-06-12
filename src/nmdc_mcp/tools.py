@@ -62,9 +62,9 @@ def get_samples_within_lat_lon_bounding_box(
 
 
 def get_samples_by_ecosystem(
-    ecosystem_type: str = None,
-    ecosystem_category: str = None,
-    ecosystem_subtype: str = None,
+    ecosystem_type: Optional[str] = None,
+    ecosystem_category: Optional[str] = None,
+    ecosystem_subtype: Optional[str] = None,
     max_records: int = 50
 ) -> List[Dict[str, Any]]:
     """
