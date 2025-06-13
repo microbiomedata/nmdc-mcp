@@ -1,20 +1,30 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
 name = "nmdc-mcp"
-version = "0.2.0"
 description = "MCP tool for querying NMDC API"
 readme = "README.md"
 authors = [
     {name = "Chris Mungall", email = "cjmungall@lbl.gov"},
 ]
 requires-python = ">=3.11"
+dynamic = [ "version" ]
+
 dependencies = [
     "fastmcp>=2.7.1",
     "requests>=2.32.4",
 ]
+
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+# Ref.: https://github.com/ninoseki/uv-dynamic-versioning/
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"
+fallback-version = "0.0.0"
 
 [dependency-groups]
 dev = [
@@ -23,8 +33,8 @@ dev = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/username/nmdc-mcp"
-"Bug Tracker" = "https://github.com/username/nmdc-mcp/issues"
+"Homepage" = "https://github.com/microbiomedata/nmdc-mcp"
+"Bug Tracker" = "https://github.com/microbiomedata/nmdc-mcp/issues"
 
 [project.scripts]
 nmdc-mcp = "nmdc_mcp.main:main"
