@@ -172,7 +172,7 @@ def get_entity_by_id(entity_id: str) -> dict[str, Any]:
     except Exception as e:
         return {
             "error": f"Failed to retrieve entity '{entity_id}': {str(e)}",
-            "entity_id": entity_id
+            "entity_id": entity_id,
         }
 
 
@@ -233,7 +233,7 @@ def get_random_biosample_subset(
             filter_criteria=final_filters,
             projection=projection,
             max_records=sampling_pool_size + random_offset,
-            verbose=True
+            verbose=True,
         )
 
         # Apply offset by skipping first N records
@@ -298,7 +298,7 @@ def get_random_collection_subset(
             filter_criteria=filter_criteria,
             projection=projection,
             max_records=sampling_pool_size + random_offset,
-            verbose=True
+            verbose=True,
         )
 
         # Apply offset by skipping first N records
