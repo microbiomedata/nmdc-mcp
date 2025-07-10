@@ -8,9 +8,30 @@ from datetime import datetime
 import random
 from .api import fetch_nmdc_biosample_records_paged, fetch_nmdc_entity_by_id, fetch_nmdc_collection_records_paged
 
+# Maximum random offset to apply when sampling to reduce ordering bias
+# This limit prevents excessive API calls while still providing good randomization
+MAX_RANDOM_OFFSET = 10000
+
+
+def clean_collection_date(record: Dict[str, Any]) -> None:
+    """
+    Clean up collection_date format in a record to be human-readable.
+    
+    Args:
+        record: Dictionary containing a record that may have collection_date field
+    """
+    if "collection_date" in record and isinstance(record["collection_date"], dict):
+        raw_date = record["collection_date"].get("has_raw_value", "")
+        if raw_date:
+            try:
+                dt = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
+                record["collection_date"] = dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+            except ValueError:
+                record["collection_date"] = raw_date
+
 
 def get_samples_in_elevation_range(
-    min_elevation: int, max_elevation
+    min_elevation: int, max_elevation: int
 ) -> List[Dict[str, Any]]:
     """
     Fetch NMDC biosample records with elevation within a specified range.
@@ -120,16 +141,7 @@ def get_samples_by_ecosystem(
 
     # Format the collection_date field to make it more readable
     for record in records:
-        if "collection_date" in record and isinstance(record["collection_date"], dict):
-            raw_date = record["collection_date"].get("has_raw_value", "")
-            if raw_date:
-                # Clean up the timestamp format
-                try:
-                    dt = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
-                    record["collection_date"] = dt.strftime("%Y-%m-%d %H:%M:%S UTC")
-                except ValueError:
-                    # Keep original if parsing fails
-                    record["collection_date"] = raw_date
+        clean_collection_date(record)
 
     return records
 
@@ -210,7 +222,7 @@ def get_random_biosample_subset(
 
     try:
         # Add random offset to reduce ordering bias
-        random_offset = random.randint(0, min(10000, sampling_pool_size))
+        random_offset = random.randint(0, min(MAX_RANDOM_OFFSET, sampling_pool_size))
         
         # Fetch larger pool with limited projection and random offset
         pool_records = fetch_nmdc_biosample_records_paged(
@@ -235,14 +247,7 @@ def get_random_biosample_subset(
         
         # Clean up collection_date format if present
         for sample in random_samples:
-            if "collection_date" in sample and isinstance(sample["collection_date"], dict):
-                raw_date = sample["collection_date"].get("has_raw_value", "")
-                if raw_date:
-                    try:
-                        dt = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
-                        sample["collection_date"] = dt.strftime("%Y-%m-%d %H:%M:%S UTC")
-                    except ValueError:
-                        sample["collection_date"] = raw_date
+            clean_collection_date(sample)
         
         return random_samples
         
@@ -281,7 +286,7 @@ def get_random_collection_subset(
 
     try:
         # Add random offset to reduce ordering bias
-        random_offset = random.randint(0, min(10000, sampling_pool_size))
+        random_offset = random.randint(0, min(MAX_RANDOM_OFFSET, sampling_pool_size))
         
         # Fetch larger pool with limited projection and random offset
         pool_records = fetch_nmdc_collection_records_paged(
@@ -307,14 +312,7 @@ def get_random_collection_subset(
         
         # Clean up collection_date format if present (common across collections)
         for sample in random_samples:
-            if "collection_date" in sample and isinstance(sample["collection_date"], dict):
-                raw_date = sample["collection_date"].get("has_raw_value", "")
-                if raw_date:
-                    try:
-                        dt = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
-                        sample["collection_date"] = dt.strftime("%Y-%m-%d %H:%M:%S UTC")
-                    except ValueError:
-                        sample["collection_date"] = raw_date
+            clean_collection_date(sample)
         
         return random_samples
         

@@ -46,7 +46,7 @@ def fetch_nmdc_collection_records_paged(
 
     all_records = []
     endpoint_url = f"{base_url}/{collection}"
-    params = {"max_page_size": max_page_size}
+    params: dict[str, Any] = {"max_page_size": max_page_size}
 
     if projection:
         if isinstance(projection, list):
@@ -122,7 +122,7 @@ def fetch_nmdc_entity_by_id(
     if verbose:
         print(f"Retrieved entity: {entity_data.get('id', 'Unknown ID')}")
     
-    return entity_data
+    return entity_data  # type: ignore[no-any-return]
 
 
 def fetch_nmdc_biosample_records_paged(

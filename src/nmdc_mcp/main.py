@@ -15,7 +15,7 @@ from nmdc_mcp.tools import (
 
 
 # Create the FastMCP instance at module level
-mcp = FastMCP("nmdc_mcp")
+mcp: FastMCP = FastMCP("nmdc_mcp")
 
 # Register all tools
 mcp.tool(get_samples_in_elevation_range)
@@ -26,7 +26,7 @@ mcp.tool(get_random_biosample_subset)
 mcp.tool(get_random_collection_subset)
 
 
-def main():
+def main() -> None:
     """Main entry point for the application."""
     mcp.run()
 
