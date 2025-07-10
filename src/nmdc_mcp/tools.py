@@ -3,20 +3,24 @@
 # This module contains tools that consume the generic API wrapper functions in
 # nmdc_mcp/api.py and constrain/transform them based on use cases/applications
 ################################################################################
-from typing import Any, Dict, List, Optional
-from datetime import datetime
 import random
-from .api import fetch_nmdc_biosample_records_paged, fetch_nmdc_entity_by_id, fetch_nmdc_collection_records_paged
+from datetime import datetime
+from typing import Any
+
+from .api import (
+    fetch_nmdc_biosample_records_paged,
+    fetch_nmdc_collection_records_paged,
+    fetch_nmdc_entity_by_id,
+)
 
 # Maximum random offset to apply when sampling to reduce ordering bias
 # This limit prevents excessive API calls while still providing good randomization
 MAX_RANDOM_OFFSET = 10000
 
 
-def clean_collection_date(record: Dict[str, Any]) -> None:
+def clean_collection_date(record: dict[str, Any]) -> None:
     """
     Clean up collection_date format in a record to be human-readable.
-    
     Args:
         record: Dictionary containing a record that may have collection_date field
     """
@@ -32,7 +36,7 @@ def clean_collection_date(record: Dict[str, Any]) -> None:
 
 def get_samples_in_elevation_range(
     min_elevation: int, max_elevation: int
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch NMDC biosample records with elevation within a specified range.
 
@@ -41,7 +45,7 @@ def get_samples_in_elevation_range(
         max_elevation (int): Maximum elevation (exclusive) for filtering records.
 
     Returns:
-        List[Dict[str, Any]]: List of biosample records that have elevation greater 
+        List[Dict[str, Any]]: List of biosample records that have elevation greater
             than min_elevation and less than max_elevation.
     """
     filter_criteria = {"elev": {"$gt": min_elevation, "$lt": max_elevation}}
@@ -56,7 +60,7 @@ def get_samples_in_elevation_range(
 
 def get_samples_within_lat_lon_bounding_box(
     lower_lat: int, upper_lat: int, lower_lon: int, upper_lon: int
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch NMDC biosample records within a specified latitude and longitude bounding box.
 
@@ -67,7 +71,7 @@ def get_samples_within_lat_lon_bounding_box(
         upper_lon (int): Upper longitude bound (exclusive).
 
     Returns:
-        List[Dict[str, Any]]: List of biosample records that fall within the specified 
+        List[Dict[str, Any]]: List of biosample records that fall within the specified
             latitude and longitude bounding box.
     """
     filter_criteria = {
@@ -84,17 +88,17 @@ def get_samples_within_lat_lon_bounding_box(
 
 
 def get_samples_by_ecosystem(
-    ecosystem_type: Optional[str] = None,
-    ecosystem_category: Optional[str] = None,
-    ecosystem_subtype: Optional[str] = None,
-    max_records: int = 50
-) -> List[Dict[str, Any]]:
+    ecosystem_type: str | None = None,
+    ecosystem_category: str | None = None,
+    ecosystem_subtype: str | None = None,
+    max_records: int = 50,
+) -> list[dict[str, Any]]:
     """
     Fetch NMDC biosample records from a specific ecosystem type, category, or subtype.
 
     Args:
-        ecosystem_type (str, optional): Type of ecosystem (e.g., "Soil", "Marine", "Host-associated")
-        ecosystem_category (str, optional): Category of ecosystem (e.g., "Terrestrial", "Aquatic")
+        ecosystem_type (str, optional): Type of ecosystem (e.g., "Soil", "Marine")
+        ecosystem_category (str, optional): Category of ecosystem
         ecosystem_subtype (str, optional): Subtype of ecosystem if available
         max_records (int): Maximum number of records to return
 
@@ -103,40 +107,40 @@ def get_samples_by_ecosystem(
     """
     # Build filter criteria based on provided parameters
     filter_criteria = {}
-    
+
     if ecosystem_type:
         filter_criteria["ecosystem_type"] = ecosystem_type
-    
+
     if ecosystem_category:
         filter_criteria["ecosystem_category"] = ecosystem_category
-        
+
     if ecosystem_subtype:
         filter_criteria["ecosystem_subtype"] = ecosystem_subtype
-    
+
     # If no filters provided, return error message
     if not filter_criteria:
-        return [{"error": "At least one ecosystem parameter (type, category, or subtype) must be provided"}]
+        return [{"error": "At least one ecosystem parameter must be provided"}]
 
     # Fields to retrieve
     projection = [
-        "id", 
-        "name", 
-        "collection_date", 
-        "ecosystem", 
-        "ecosystem_category", 
+        "id",
+        "name",
+        "collection_date",
+        "ecosystem",
+        "ecosystem_category",
         "ecosystem_type",
         "ecosystem_subtype",
         "env_broad_scale",
         "env_local_scale",
         "env_medium",
-        "geo_loc_name"
+        "geo_loc_name",
     ]
 
     records = fetch_nmdc_biosample_records_paged(
         filter_criteria=filter_criteria,
         projection=projection,
         max_records=max_records,
-        verbose=True
+        verbose=True,
     )
 
     # Format the collection_date field to make it more readable
@@ -146,19 +150,19 @@ def get_samples_by_ecosystem(
     return records
 
 
-def get_entity_by_id(entity_id: str) -> Dict[str, Any]:
+def get_entity_by_id(entity_id: str) -> dict[str, Any]:
     """
     Retrieve any NMDC entity by its ID.
 
     Args:
-        entity_id (str): NMDC entity ID (e.g., "nmdc:bsm-11-abc123", "nmdc:sty-11-xyz789")
+        entity_id (str): NMDC entity ID (e.g., "nmdc:bsm-11-abc123")
 
     Returns:
         Dict[str, Any]: Entity data from NMDC schema API
 
     Examples:
         - Biosample: "nmdc:bsm-11-abc123"
-        - Study: "nmdc:sty-11-xyz789"  
+        - Study: "nmdc:sty-11-xyz789"
         - OmicsProcessing: "nmdc:omprc-11-def456"
         - DataObject: "nmdc:dobj-11-ghi789"
     """
@@ -175,10 +179,10 @@ def get_entity_by_id(entity_id: str) -> Dict[str, Any]:
 def get_random_biosample_subset(
     sample_count: int = 10,
     sampling_pool_size: int = 1000,
-    projection: Optional[List[str]] = None,
-    filter_criteria: Optional[Dict[str, Any]] = None,
+    projection: list[str] | None = None,
+    filter_criteria: dict[str, Any] | None = None,
     require_coordinates: bool = True,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get N random biosamples with configurable fields and filters.
 
@@ -202,10 +206,10 @@ def get_random_biosample_subset(
         projection = ["id", "name"]
         if require_coordinates:
             projection.extend(["lat_lon", "collection_date"])
-    
+
     # Build base filters
     base_filters = {}
-    
+
     # Add coordinate requirements if requested
     if require_coordinates:
         coordinate_filters = {
@@ -213,7 +217,7 @@ def get_random_biosample_subset(
             "lat_lon.longitude": {"$exists": True, "$ne": None},
         }
         base_filters.update(coordinate_filters)
-    
+
     # Merge with user-provided filters
     if filter_criteria:
         final_filters = {**base_filters, **filter_criteria}
@@ -223,7 +227,7 @@ def get_random_biosample_subset(
     try:
         # Add random offset to reduce ordering bias
         random_offset = random.randint(0, min(MAX_RANDOM_OFFSET, sampling_pool_size))
-        
+
         # Fetch larger pool with limited projection and random offset
         pool_records = fetch_nmdc_biosample_records_paged(
             filter_criteria=final_filters,
@@ -231,26 +235,26 @@ def get_random_biosample_subset(
             max_records=sampling_pool_size + random_offset,
             verbose=True
         )
-        
+
         # Apply offset by skipping first N records
         if len(pool_records) > random_offset:
             pool_records = pool_records[random_offset:]
-        
+
         if not pool_records:
             return [{"error": "No biosamples found matching criteria"}]
-        
+
         # Ensure we don't try to sample more than available
         actual_sample_count = min(sample_count, len(pool_records))
-        
+
         # Randomly sample from the pool
         random_samples = random.sample(pool_records, actual_sample_count)
-        
+
         # Clean up collection_date format if present
         for sample in random_samples:
             clean_collection_date(sample)
-        
+
         return random_samples
-        
+
     except Exception as e:
         return [{"error": f"Failed to fetch random samples: {str(e)}"}]
 
@@ -259,17 +263,17 @@ def get_random_collection_subset(
     collection: str = "biosample_set",
     sample_count: int = 10,
     sampling_pool_size: int = 1000,
-    projection: Optional[List[str]] = None,
-    filter_criteria: Optional[Dict[str, Any]] = None,
-) -> List[Dict[str, Any]]:
+    projection: list[str] | None = None,
+    filter_criteria: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     """
     Get N random records from any NMDC collection with configurable fields and filters.
 
     Args:
-        collection (str): NMDC collection name (e.g., "biosample_set", "study_set", "omics_processing_set")
+        collection (str): NMDC collection name (e.g., "biosample_set")
         sample_count (int): Number of random samples to return (default: 10)
         sampling_pool_size (int): Size of pool to sample from (default: 1000)
-        projection (List[str], optional): Fields to include. If None, uses ["id", "name"]
+        projection: Fields to include. If None, uses ["id", "name"]
         filter_criteria (dict, optional): MongoDB-style filters to apply
 
     Returns:
@@ -277,8 +281,8 @@ def get_random_collection_subset(
 
     Examples:
         - get_random_collection_subset("study_set", 5)  # 5 random studies
-        - get_random_collection_subset("omics_processing_set", 10, projection=["id", "type"])
-        - get_random_collection_subset("biosample_set", 20, filter_criteria={"ecosystem_type": "Soil"})
+        - get_random_collection_subset("omics_processing_set", 10)
+        - get_random_collection_subset("biosample_set", 20)
     """
     # Use provided projection or default minimal set
     if projection is None:
@@ -287,7 +291,7 @@ def get_random_collection_subset(
     try:
         # Add random offset to reduce ordering bias
         random_offset = random.randint(0, min(MAX_RANDOM_OFFSET, sampling_pool_size))
-        
+
         # Fetch larger pool with limited projection and random offset
         pool_records = fetch_nmdc_collection_records_paged(
             collection=collection,
@@ -296,25 +300,25 @@ def get_random_collection_subset(
             max_records=sampling_pool_size + random_offset,
             verbose=True
         )
-        
+
         # Apply offset by skipping first N records
         if len(pool_records) > random_offset:
             pool_records = pool_records[random_offset:]
-        
+
         if not pool_records:
             return [{"error": f"No records found in {collection} matching criteria"}]
-        
+
         # Ensure we don't try to sample more than available
         actual_sample_count = min(sample_count, len(pool_records))
-        
+
         # Randomly sample from the pool
         random_samples = random.sample(pool_records, actual_sample_count)
-        
+
         # Clean up collection_date format if present (common across collections)
         for sample in random_samples:
             clean_collection_date(sample)
-        
+
         return random_samples
-        
+
     except Exception as e:
-        return [{"error": f"Failed to fetch random samples from {collection}: {str(e)}"}]
+        return [{"error": f"Failed to fetch samples from {collection}: {str(e)}"}]

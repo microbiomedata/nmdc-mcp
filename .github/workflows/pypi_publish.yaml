@@ -25,7 +25,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install project dependencies
-        run: uv sync
+        run: uv sync --group dev
+
+      - name: Run tests and QC (optional - won't block release)
+        run: make test-coverage || true
 
       - name: Build source and wheel archives
         run: uv build

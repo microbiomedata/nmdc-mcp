@@ -8,9 +8,9 @@ dist/
 wheels/
 *.egg-info
 
-# Virtual environments
-.venv
-
-# Test coverage
+# Coverage files
 .coverage
 htmlcov/
+
+# Virtual environments
+.venv

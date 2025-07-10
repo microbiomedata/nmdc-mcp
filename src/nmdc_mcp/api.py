@@ -7,28 +7,27 @@
 # so that we are not duplicating code that already exists in the NMDC ecosystem.
 ################################################################################
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+
 import requests
 
 
 def fetch_nmdc_collection_records_paged(
     collection: str = "biosample_set",
     max_page_size: int = 100,
-    projection: Optional[Union[str, List[str]]] = None,
-    page_token: Optional[str] = None,
-    filter_criteria: Optional[
-        Dict[str, Any]
-    ] = None,  # Placeholder for future filtering support
-    additional_params: Optional[Dict[str, Any]] = None,
-    max_records: Optional[int] = None,
+    projection: str | list[str] | None = None,
+    page_token: str | None = None,
+    filter_criteria: dict[str, Any] | None = None,  # Future filtering support
+    additional_params: dict[str, Any] | None = None,
+    max_records: int | None = None,
     verbose: bool = False,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     This function retrieves records from any NMDC collection, handling pagination
     automatically to return the complete set of results.
 
     Args:
-        collection: NMDC collection name (e.g., "biosample_set", "study_set", "omics_processing_set")
+        collection: NMDC collection name (e.g., "biosample_set", "study_set")
         max_page_size: Maximum number of records to retrieve per API call.
         projection: Fields to include in the response. Can be a comma-separated string
             or a list of field names.
@@ -40,7 +39,7 @@ def fetch_nmdc_collection_records_paged(
         verbose: If True, print progress information during retrieval.
 
     Returns:
-        A list of dictionaries, where each dictionary represents a record from the collection.
+        A list of dictionaries, each representing a record from the collection.
     """
     base_url: str = "https://api.microbiomedata.org/nmdcschema"
 
@@ -110,18 +109,18 @@ def fetch_nmdc_entity_by_id(
         requests.HTTPError: If the entity is not found or API request fails
     """
     endpoint_url = f"{base_url}/ids/{entity_id}"
-    
+
     if verbose:
         print(f"Fetching entity from: {endpoint_url}")
 
     response = requests.get(endpoint_url)
     response.raise_for_status()
-    
+
     entity_data = response.json()
-    
+
     if verbose:
         print(f"Retrieved entity: {entity_data.get('id', 'Unknown ID')}")
-    
+
     return entity_data  # type: ignore[no-any-return]
 
 
@@ -136,7 +135,6 @@ def fetch_nmdc_biosample_records_paged(
 ) -> list[dict[str, Any]]:
     """
     Backwards-compatible wrapper for fetching biosample records.
-    
     This is a convenience function that calls fetch_nmdc_collection_records_paged
     with collection="biosample_set".
     """
@@ -150,5 +148,3 @@ def fetch_nmdc_biosample_records_paged(
         max_records=max_records,
         verbose=verbose,
     )
-
-
