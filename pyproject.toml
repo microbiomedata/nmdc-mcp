@@ -41,6 +41,8 @@ source = "uv-dynamic-versioning"
 vcs = "git"
 style = "pep440"
 fallback-version = "0.0.0"
+# Ensure clean versions for releases - no local part when on tagged commits
+dirty = false
 
 [dependency-groups]
 dev = [
