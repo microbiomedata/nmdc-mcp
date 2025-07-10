@@ -1,5 +1,7 @@
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import patch, Mock
+
 from nmdc_mcp.api import fetch_nmdc_biosample_records_paged
 
 

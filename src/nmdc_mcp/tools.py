@@ -3,14 +3,15 @@
 # This module contains tools that consume the generic API wrapper functions in
 # nmdc_mcp/api.py and constrain/transform them based on use cases/applications
 ################################################################################
-from typing import Any, Dict, List, Optional
 from datetime import datetime
+from typing import Any
+
 from .api import fetch_nmdc_biosample_records_paged
 
 
 def get_samples_in_elevation_range(
-    min_elevation: int, max_elevation
-) -> List[Dict[str, Any]]:
+    min_elevation: int, max_elevation: int
+) -> list[dict[str, Any]]:
     """
     Fetch NMDC biosample records with elevation within a specified range.
 
@@ -19,7 +20,7 @@ def get_samples_in_elevation_range(
         max_elevation (int): Maximum elevation (exclusive) for filtering records.
 
     Returns:
-        List[Dict[str, Any]]: List of biosample records that have elevation greater 
+        List[Dict[str, Any]]: List of biosample records that have elevation greater
             than min_elevation and less than max_elevation.
     """
     filter_criteria = {"elev": {"$gt": min_elevation, "$lt": max_elevation}}
@@ -34,7 +35,7 @@ def get_samples_in_elevation_range(
 
 def get_samples_within_lat_lon_bounding_box(
     lower_lat: int, upper_lat: int, lower_lon: int, upper_lon: int
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch NMDC biosample records within a specified latitude and longitude bounding box.
 
@@ -45,7 +46,7 @@ def get_samples_within_lat_lon_bounding_box(
         upper_lon (int): Upper longitude bound (exclusive).
 
     Returns:
-        List[Dict[str, Any]]: List of biosample records that fall within the specified 
+        List[Dict[str, Any]]: List of biosample records that fall within the specified
             latitude and longitude bounding box.
     """
     filter_criteria = {
@@ -62,17 +63,17 @@ def get_samples_within_lat_lon_bounding_box(
 
 
 def get_samples_by_ecosystem(
-    ecosystem_type: Optional[str] = None,
-    ecosystem_category: Optional[str] = None,
-    ecosystem_subtype: Optional[str] = None,
-    max_records: int = 50
-) -> List[Dict[str, Any]]:
+    ecosystem_type: str | None = None,
+    ecosystem_category: str | None = None,
+    ecosystem_subtype: str | None = None,
+    max_records: int = 50,
+) -> list[dict[str, Any]]:
     """
     Fetch NMDC biosample records from a specific ecosystem type, category, or subtype.
 
     Args:
-        ecosystem_type (str, optional): Type of ecosystem (e.g., "Soil", "Marine", "Host-associated")
-        ecosystem_category (str, optional): Category of ecosystem (e.g., "Terrestrial", "Aquatic")
+        ecosystem_type (str, optional): Type of ecosystem (e.g., "Soil", "Marine")
+        ecosystem_category (str, optional): Category of ecosystem
         ecosystem_subtype (str, optional): Subtype of ecosystem if available
         max_records (int): Maximum number of records to return
 
@@ -81,40 +82,40 @@ def get_samples_by_ecosystem(
     """
     # Build filter criteria based on provided parameters
     filter_criteria = {}
-    
+
     if ecosystem_type:
         filter_criteria["ecosystem_type"] = ecosystem_type
-    
+
     if ecosystem_category:
         filter_criteria["ecosystem_category"] = ecosystem_category
-        
+
     if ecosystem_subtype:
         filter_criteria["ecosystem_subtype"] = ecosystem_subtype
-    
+
     # If no filters provided, return error message
     if not filter_criteria:
-        return [{"error": "At least one ecosystem parameter (type, category, or subtype) must be provided"}]
+        return [{"error": "At least one ecosystem parameter must be provided"}]
 
     # Fields to retrieve
     projection = [
-        "id", 
-        "name", 
-        "collection_date", 
-        "ecosystem", 
-        "ecosystem_category", 
+        "id",
+        "name",
+        "collection_date",
+        "ecosystem",
+        "ecosystem_category",
         "ecosystem_type",
         "ecosystem_subtype",
         "env_broad_scale",
         "env_local_scale",
         "env_medium",
-        "geo_loc_name"
+        "geo_loc_name",
     ]
 
     records = fetch_nmdc_biosample_records_paged(
         filter_criteria=filter_criteria,
         projection=projection,
         max_records=max_records,
-        verbose=True
+        verbose=True,
     )
 
     # Format the collection_date field to make it more readable
