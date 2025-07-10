@@ -10,7 +10,7 @@ from .api import fetch_nmdc_biosample_records_paged
 
 
 def get_samples_in_elevation_range(
-    min_elevation: int, max_elevation
+    min_elevation: int, max_elevation: int
 ) -> list[dict[str, Any]]:
     """
     Fetch NMDC biosample records with elevation within a specified range.
