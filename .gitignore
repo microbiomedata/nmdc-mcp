@@ -10,3 +10,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Test coverage
+.coverage
+htmlcov/
