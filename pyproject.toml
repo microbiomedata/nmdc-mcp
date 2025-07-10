@@ -5,6 +5,8 @@ readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Chris Mungall", email = "cjmungall@lbl.gov"},
+    {name = "Mark Andrew Miller", email = "MAM@lbl.gov"},
+    {name = "Sujay Patil", email = "spatil@lbl.gov"},
 ]
 keywords = ["mcp", "nmdc", "microbiome", "biosamples", "fastmcp", "model-context-protocol"]
 classifiers = [
