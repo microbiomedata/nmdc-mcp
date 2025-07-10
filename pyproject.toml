@@ -1,9 +1,23 @@
 [project]
 name = "nmdc-mcp"
-description = "MCP tool for querying NMDC API"
+description = "FastMCP-based tool for writing prompts against data in the NMDC (National Microbiome Data Collaborative) database"
 readme = "README.md"
+license = {text = "MIT"}
 authors = [
     {name = "Chris Mungall", email = "cjmungall@lbl.gov"},
+]
+keywords = ["mcp", "nmdc", "microbiome", "biosamples", "fastmcp", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 requires-python = ">=3.11"
 dynamic = [ "version" ]
@@ -28,13 +42,28 @@ fallback-version = "0.0.0"
 
 [dependency-groups]
 dev = [
-  "pytest",
-  "black",
+    # Testing
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    # Code quality and formatting
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    # Build and packaging
+    "hatch-vcs>=0.5.0",
+    "hatchling>=1.27.0",
+    "twine>=4.0.0",
+    # Type stubs
+    "types-requests>=2.32.4.20250611",
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/microbiomedata/nmdc-mcp"
+"Repository" = "https://github.com/microbiomedata/nmdc-mcp"
 "Bug Tracker" = "https://github.com/microbiomedata/nmdc-mcp/issues"
+"Documentation" = "https://github.com/microbiomedata/nmdc-mcp/blob/main/README.md"
+"Changelog" = "https://github.com/microbiomedata/nmdc-mcp/releases"
 
 [project.scripts]
 nmdc-mcp = "nmdc_mcp.main:main"
@@ -43,4 +72,48 @@ nmdc-mcp = "nmdc_mcp.main:main"
 packages = ["src/nmdc_mcp"]
 
 [tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
 testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow",
+    "integration: marks tests as integration tests that hit real APIs",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+exclude = ["src/nmdc_mcp/_version.py"]
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+show_error_codes = true
+ignore_missing_imports = true
+warn_return_any = false
+disallow_untyped_defs = false
+
+[tool.deptry]
+[tool.deptry.package_module_name_map]
+pytest_asyncio = "pytest-asyncio"
+pytest_cov = "pytest-cov"
+
+[tool.deptry.per_rule_ignores]
+DEP001 = ["nmdc_mcp"]  # Allow self-imports
+DEP002 = ["black", "ruff", "mypy", "pytest", "pytest-asyncio", "pytest-cov", "hatch-vcs", "hatchling", "twine", "types-requests"]  # Dev deps not in main code

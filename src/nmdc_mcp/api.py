@@ -7,21 +7,20 @@
 # so that we are not duplicating code that already exists in the NMDC ecosystem.
 ################################################################################
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+
 import requests
 
 
 def fetch_nmdc_biosample_records_paged(
     max_page_size: int = 100,
-    projection: Optional[Union[str, List[str]]] = None,
-    page_token: Optional[str] = None,
-    filter_criteria: Optional[
-        Dict[str, Any]
-    ] = None,  # Placeholder for future filtering support
-    additional_params: Optional[Dict[str, Any]] = None,
-    max_records: Optional[int] = None,
+    projection: str | list[str] | None = None,
+    page_token: str | None = None,
+    filter_criteria: dict[str, Any] | None = None,  # Future filtering support
+    additional_params: dict[str, Any] | None = None,
+    max_records: int | None = None,
     verbose: bool = False,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     This function retrieves biosample records from the NMDC API, handling pagination
     automatically to return the complete set of results.
@@ -45,7 +44,7 @@ def fetch_nmdc_biosample_records_paged(
 
     all_records = []
     endpoint_url = f"{base_url}/{collection}"
-    params = {"max_page_size": max_page_size}
+    params: dict[str, Any] = {"max_page_size": max_page_size}
 
     if projection:
         if isinstance(projection, list):
@@ -87,5 +86,3 @@ def fetch_nmdc_biosample_records_paged(
             break
 
     return all_records
-
-
