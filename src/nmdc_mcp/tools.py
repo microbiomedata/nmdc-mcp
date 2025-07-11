@@ -775,3 +775,278 @@ def get_entities_by_ids_with_projection(
             "fetched_count": 0,
             "collection": collection,
         }
+
+
+def get_study_doi_details(study_id: str) -> dict[str, Any]:
+    """
+    Get the details of all DOIs associated with a specific study.
+
+    This function retrieves the complete DOI information for a given study,
+    including DOI values, categories, and providers.
+
+    Args:
+        study_id (str): NMDC study ID (e.g., "nmdc:sty-11-abc123")
+
+    Returns:
+        Dict[str, Any]: Dictionary containing study information and associated DOI
+            details
+
+    Examples:
+        - get_study_doi_details("nmdc:sty-11-abc123")
+        - Result: {
+            "study_id": "nmdc:sty-11-abc123",
+            "study_name": "Study Name",
+            "doi_count": 2,
+            "associated_dois": [
+                {
+                    "doi_value": "doi:10.46936/10.25585/60001211",
+                    "doi_category": "award_doi",
+                    "doi_provider": "jgi",
+                    "type": "nmdc:Doi"
+                },
+                ...
+            ]
+        }
+    """
+    try:
+        # Fetch the study entity with projection to get only relevant fields
+        study_data = fetch_nmdc_entity_by_id_with_projection(
+            entity_id=study_id,
+            collection="study_set",
+            projection=["id", "name", "title", "associated_dois"],
+            verbose=True,
+        )
+
+        if study_data is None:
+            return {
+                "error": f"Study '{study_id}' not found",
+                "study_id": study_id,
+            }
+
+        # Extract DOI information
+        associated_dois = study_data.get("associated_dois", [])
+
+        # Build the response
+        result = {
+            "study_id": study_data.get("id", study_id),
+            "study_name": study_data.get("name", study_data.get("title", "Unknown")),
+            "doi_count": len(associated_dois),
+            "associated_dois": associated_dois,
+        }
+
+        if not associated_dois:
+            result["note"] = f"No DOIs found for study '{study_id}'"
+        else:
+            # Add summary of DOI categories
+            doi_categories: dict[str, int] = {}
+            for doi in associated_dois:
+                category = doi.get("doi_category", "unknown")
+                doi_categories[category] = doi_categories.get(category, 0) + 1
+
+            result["doi_categories_summary"] = doi_categories
+            result["note"] = (
+                f"Found {len(associated_dois)} DOI(s) for study '{study_id}': "
+                f"{', '.join(f'{count} {category}' for category, count in doi_categories.items())}"  # noqa: E501
+            )
+
+        return result
+
+    except Exception as e:
+        return {
+            "error": f"Failed to retrieve DOI details for study '{study_id}': {str(e)}",
+            "study_id": study_id,
+        }
+
+
+def search_studies_by_doi_criteria(
+    doi_provider: str | None = None,
+    doi_category: str | None = None,
+    doi_value_contains: str | None = None,
+    max_results: int = 50,
+) -> dict[str, Any]:
+    """
+    Search for studies that have DOIs matching specified criteria.
+
+    This function searches through all studies to find those with DOIs that match
+    the given criteria. Useful for finding studies from specific providers, categories,
+    or DOI patterns.
+
+    Args:
+        doi_provider (str, optional): Filter by DOI provider. Valid values:
+            emsl, jgi, kbase, osti, ess_dive, massive, gsc, zenodo, edi, figshare
+        doi_category (str, optional): Filter by DOI category. Valid values:
+            award_doi, dataset_doi, publication_doi, data_management_plan_doi
+        doi_value_contains (str, optional): Filter DOIs containing this substring
+        max_results (int): Maximum number of studies to return (default: 50)
+
+    Returns:
+        Dict[str, Any]: Dictionary containing matching studies and their DOI information
+
+    Examples:
+        - search_studies_by_doi_criteria(doi_provider="jgi")
+        - search_studies_by_doi_criteria(doi_category="dataset_doi", max_results=10)
+        - search_studies_by_doi_criteria(doi_value_contains="10.25585")
+        - search_studies_by_doi_criteria(doi_provider="emsl", doi_category="award_doi")
+    """
+    try:
+        # Validate inputs
+        valid_providers = {
+            "emsl",
+            "jgi",
+            "kbase",
+            "osti",
+            "ess_dive",
+            "massive",
+            "gsc",
+            "zenodo",
+            "edi",
+            "figshare",
+        }
+        valid_categories = {
+            "award_doi",
+            "dataset_doi",
+            "publication_doi",
+            "data_management_plan_doi",
+        }
+
+        if doi_provider and doi_provider not in valid_providers:
+            return {
+                "error": f"Invalid doi_provider '{doi_provider}'. Valid values: {sorted(valid_providers)}",  # noqa: E501
+                "search_criteria": {
+                    "doi_provider": doi_provider,
+                    "doi_category": doi_category,
+                    "doi_value_contains": doi_value_contains,
+                },
+            }
+
+        if doi_category and doi_category not in valid_categories:
+            return {
+                "error": f"Invalid doi_category '{doi_category}'. Valid values: {sorted(valid_categories)}",  # noqa: E501
+                "search_criteria": {
+                    "doi_provider": doi_provider,
+                    "doi_category": doi_category,
+                    "doi_value_contains": doi_value_contains,
+                },
+            }
+
+        if not any([doi_provider, doi_category, doi_value_contains]):
+            return {
+                "error": "At least one search criterion must be provided",
+                "search_criteria": {
+                    "doi_provider": doi_provider,
+                    "doi_category": doi_category,
+                    "doi_value_contains": doi_value_contains,
+                },
+            }
+
+        # Fetch all studies with their DOI information
+        studies_with_dois = fetch_nmdc_collection_records_paged(
+            collection="study_set",
+            projection=["id", "name", "title", "associated_dois"],
+            max_records=None,  # Get all studies to search through
+            verbose=False,
+        )
+
+        matching_studies = []
+        total_studies_checked = 0
+        studies_with_dois_count = 0
+
+        for study in studies_with_dois:
+            total_studies_checked += 1
+            associated_dois = study.get("associated_dois", [])
+
+            if not associated_dois:
+                continue
+
+            studies_with_dois_count += 1
+
+            # Check if any DOI in this study matches our criteria
+            matching_dois = []
+            for doi in associated_dois:
+                # Check provider criteria
+                if doi_provider and doi.get("doi_provider") != doi_provider:
+                    continue
+
+                # Check category criteria
+                if doi_category and doi.get("doi_category") != doi_category:
+                    continue
+
+                # Check value contains criteria
+                if doi_value_contains and doi_value_contains not in doi.get(
+                    "doi_value", ""
+                ):
+                    continue
+
+                # If we reach here, this DOI matches all criteria
+                matching_dois.append(doi)
+
+            # If we found matching DOIs in this study, add it to results
+            if matching_dois:
+                study_result = {
+                    "study_id": study.get("id"),
+                    "study_name": study.get("name", study.get("title", "Unknown")),
+                    "matching_dois": matching_dois,
+                    "matching_doi_count": len(matching_dois),
+                    "total_doi_count": len(associated_dois),
+                }
+                matching_studies.append(study_result)
+
+                # Stop if we've reached max_results
+                if len(matching_studies) >= max_results:
+                    break
+
+        # Build summary statistics
+        total_matching_dois = sum(
+            study["matching_doi_count"] for study in matching_studies
+        )
+
+        # Generate search criteria summary
+        criteria_parts = []
+        if doi_provider:
+            criteria_parts.append(f"provider={doi_provider}")
+        if doi_category:
+            criteria_parts.append(f"category={doi_category}")
+        if doi_value_contains:
+            criteria_parts.append(f"value_contains='{doi_value_contains}'")
+        criteria_summary = ", ".join(criteria_parts)
+
+        result = {
+            "search_criteria": {
+                "doi_provider": doi_provider,
+                "doi_category": doi_category,
+                "doi_value_contains": doi_value_contains,
+            },
+            "search_summary": {
+                "criteria": criteria_summary,
+                "total_studies_checked": total_studies_checked,
+                "studies_with_dois": studies_with_dois_count,
+                "matching_studies_found": len(matching_studies),
+                "total_matching_dois": total_matching_dois,
+                "max_results_limit": max_results,
+                "results_truncated": len(matching_studies) >= max_results,
+            },
+            "matching_studies": matching_studies,
+        }
+
+        if matching_studies:
+            result["note"] = (
+                f"Found {len(matching_studies)} studies with DOIs matching criteria ({criteria_summary}). "  # noqa: E501
+                f"Total of {total_matching_dois} matching DOIs across all studies."
+            )
+        else:
+            result["note"] = (
+                f"No studies found with DOIs matching criteria ({criteria_summary}). "
+                f"Searched {studies_with_dois_count} studies that have DOIs."
+            )
+
+        return result
+
+    except Exception as e:
+        return {
+            "error": f"Failed to search studies by DOI criteria: {str(e)}",
+            "search_criteria": {
+                "doi_provider": doi_provider,
+                "doi_category": doi_category,
+                "doi_value_contains": doi_value_contains,
+            },
+        }
