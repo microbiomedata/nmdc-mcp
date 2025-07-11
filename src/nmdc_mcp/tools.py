@@ -715,16 +715,17 @@ def get_entities_by_ids_with_projection(
         )
 
         # Create a lookup to check which IDs were found
-        found_ids = {entity.get("id") for entity in entities}
+        entity_map = {entity.get("id"): entity for entity in entities}
+        reordered_entities = [entity_map.get(entity_id) for entity_id in entity_ids if entity_map.get(entity_id)]
         missing_ids = [
-            entity_id for entity_id in entity_ids if entity_id not in found_ids
+            entity_id for entity_id in entity_ids if entity_id not in entity_map
         ]
 
         result = {
             "collection": collection,
-            "entities": entities,
+            "entities": reordered_entities,
             "requested_count": len(entity_ids),
-            "fetched_count": len(entities),
+            "fetched_count": len(reordered_entities),
             "requested_ids": entity_ids,
         }
 
