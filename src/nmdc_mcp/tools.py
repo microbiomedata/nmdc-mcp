@@ -691,7 +691,16 @@ def get_entities_by_ids_with_projection(
         max_page_size (int): Maximum number of records to retrieve per API call
 
     Returns:
-        Dict[str, Any]: Contains the fetched entities and metadata
+        Dict[str, Any]: Contains the fetched entities and metadata including:
+            - entities: List of fetched entity documents
+            - requested_count: Number of entity IDs requested
+            - fetched_count: Number of entities successfully fetched
+            - requested_ids: List of entity IDs that were requested
+              (empty list if entity_ids was None/empty)
+            - missing_ids: List of entity IDs that were not found
+              (only present if some IDs are missing)
+            - collection: Name of the collection queried
+            - note: Human-readable summary of the operation
 
     Examples:
         - get_entities_by_ids_with_projection(
@@ -712,6 +721,7 @@ def get_entities_by_ids_with_projection(
                 "entities": [],
                 "requested_count": 0,
                 "fetched_count": 0,
+                "requested_ids": [],
             }
 
         if len(entity_ids) > MAX_ENTITY_IDS_PER_REQUEST:
@@ -723,6 +733,7 @@ def get_entities_by_ids_with_projection(
                 "entities": [],
                 "requested_count": len(entity_ids),
                 "fetched_count": 0,
+                "requested_ids": entity_ids,
             }
 
         entities = fetch_nmdc_entities_by_ids_with_projection(
