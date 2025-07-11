@@ -124,6 +124,39 @@ def fetch_nmdc_entity_by_id(
     return entity_data  # type: ignore[no-any-return]
 
 
+def fetch_nmdc_collection_names(
+    base_url: str = "https://api.microbiomedata.org/nmdcschema",
+    verbose: bool = False,
+) -> list[str]:
+    """
+    Fetch the list of available NMDC collection names.
+
+    Args:
+        base_url: Base URL for NMDC schema API
+        verbose: Enable verbose logging
+
+    Returns:
+        List of collection names
+
+    Raises:
+        requests.HTTPError: If the API request fails
+    """
+    endpoint_url = f"{base_url}/collection_names"
+
+    if verbose:
+        print(f"Fetching collection names from: {endpoint_url}")
+
+    response = requests.get(endpoint_url)
+    response.raise_for_status()
+
+    collection_names = response.json()
+
+    if verbose:
+        print(f"Retrieved {len(collection_names)} collection names: {collection_names}")
+
+    return collection_names
+
+
 def fetch_nmdc_collection_stats(
     base_url: str = "https://api.microbiomedata.org/nmdcschema",
     verbose: bool = False,
@@ -141,7 +174,7 @@ def fetch_nmdc_collection_stats(
     Raises:
         requests.HTTPError: If the API request fails
     """
-    endpoint_url = f"{base_url}/collection-stats"
+    endpoint_url = f"{base_url}/collection_stats"
 
     if verbose:
         print(f"Fetching collection stats from: {endpoint_url}")
@@ -149,15 +182,80 @@ def fetch_nmdc_collection_stats(
     response = requests.get(endpoint_url)
     response.raise_for_status()
 
-    stats_data = response.json()
+    raw_stats = response.json()
+
+    # Transform the response format from list to dictionary keyed by collection name
+    stats_data = {}
+
+    for collection_stat in raw_stats:
+        # Extract collection name from namespace
+        # (e.g., "nmdc.biosample_set" -> "biosample_set")
+        ns = collection_stat.get("ns", "")
+        if ns.startswith("nmdc."):
+            collection_name = ns[5:]  # Remove "nmdc." prefix
+            storage_stats = collection_stat.get("storageStats", {})
+
+            stats_data[collection_name] = {
+                "count": storage_stats.get("count", 0),
+                "size_bytes": storage_stats.get("size", 0),
+                "avg_obj_size": storage_stats.get("avgObjSize", 0),
+                "storage_size": storage_stats.get("storageSize", 0),
+                "total_size": storage_stats.get("totalSize", 0),
+            }
+
+            if verbose:
+                count = storage_stats.get("count", 0)
+                print(f"  {collection_name}: {count:,} documents")
 
     if verbose:
-        collections = (
-            list(stats_data.keys()) if isinstance(stats_data, dict) else "Unknown"
-        )
-        print(f"Retrieved stats for collections: {collections}")
+        total_collections = len(stats_data)
+        print(f"Retrieved stats for {total_collections} collections")
 
-    return stats_data  # type: ignore[no-any-return]
+    return stats_data
+
+
+def fetch_nmdc_entity_by_id_with_projection(
+    entity_id: str,
+    collection: str,
+    projection: str | list[str] | None = None,
+    base_url: str = "https://api.microbiomedata.org/nmdcschema",
+    verbose: bool = False,
+) -> dict[str, Any] | None:
+    """
+    Fetch a specific NMDC entity by ID with optional field projection.
+
+    This function uses the collection-specific endpoint with filtering to fetch
+    a single document, allowing for field projection unlike the generic /ids/ endpoint.
+
+    Args:
+        entity_id: NMDC ID (e.g., "nmdc:bsm-11-abc123")
+        collection: NMDC collection name (e.g., "biosample_set", "study_set")
+        projection: Fields to include in the response. Can be a comma-separated string
+            or a list of field names.
+        base_url: Base URL for NMDC schema API
+        verbose: Enable verbose logging
+
+    Returns:
+        Dictionary containing the entity data with projected fields,
+        or None if not found
+
+    Raises:
+        requests.HTTPError: If the API request fails
+    """
+    filter_criteria = {"id": entity_id}
+
+    records = fetch_nmdc_collection_records_paged(
+        collection=collection,
+        max_page_size=1,
+        projection=projection,
+        filter_criteria=filter_criteria,
+        max_records=1,
+        verbose=verbose,
+    )
+
+    if records:
+        return records[0]
+    return None
 
 
 def fetch_nmdc_biosample_records_paged(
