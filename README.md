@@ -37,7 +37,7 @@ git clone https://github.com/microbiomedata/nmdc-mcp.git
 cd nmdc-mcp
 
 # Install development dependencies
-uv sync --group dev
+make dev
 ```
 
 ### Development Workflow
