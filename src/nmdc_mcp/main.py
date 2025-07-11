@@ -6,6 +6,8 @@
 from fastmcp import FastMCP
 
 from nmdc_mcp.tools import (
+    get_all_collection_ids,
+    get_collection_stats,
     get_entity_by_id,
     get_random_biosample_subset,
     get_random_collection_subset,
@@ -18,6 +20,8 @@ from nmdc_mcp.tools import (
 mcp: FastMCP = FastMCP("nmdc_mcp")
 
 # Register all tools
+mcp.tool(get_collection_stats)
+mcp.tool(get_all_collection_ids)
 mcp.tool(get_samples_in_elevation_range)
 mcp.tool(get_samples_within_lat_lon_bounding_box)
 mcp.tool(get_samples_by_ecosystem)

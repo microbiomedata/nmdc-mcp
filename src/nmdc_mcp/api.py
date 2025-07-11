@@ -124,6 +124,42 @@ def fetch_nmdc_entity_by_id(
     return entity_data  # type: ignore[no-any-return]
 
 
+def fetch_nmdc_collection_stats(
+    base_url: str = "https://api.microbiomedata.org/nmdcschema",
+    verbose: bool = False,
+) -> dict[str, Any]:
+    """
+    Fetch statistics for all NMDC collections including document counts.
+
+    Args:
+        base_url: Base URL for NMDC schema API
+        verbose: Enable verbose logging
+
+    Returns:
+        Dictionary containing collection statistics with counts for each collection
+
+    Raises:
+        requests.HTTPError: If the API request fails
+    """
+    endpoint_url = f"{base_url}/collection-stats"
+
+    if verbose:
+        print(f"Fetching collection stats from: {endpoint_url}")
+
+    response = requests.get(endpoint_url)
+    response.raise_for_status()
+
+    stats_data = response.json()
+
+    if verbose:
+        collections = (
+            list(stats_data.keys()) if isinstance(stats_data, dict) else "Unknown"
+        )
+        print(f"Retrieved stats for collections: {collections}")
+
+    return stats_data  # type: ignore[no-any-return]
+
+
 def fetch_nmdc_biosample_records_paged(
     max_page_size: int = 100,
     projection: str | list[str] | None = None,

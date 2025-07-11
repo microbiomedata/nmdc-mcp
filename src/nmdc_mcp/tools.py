@@ -10,6 +10,7 @@ from typing import Any
 from .api import (
     fetch_nmdc_biosample_records_paged,
     fetch_nmdc_collection_records_paged,
+    fetch_nmdc_collection_stats,
     fetch_nmdc_entity_by_id,
 )
 
@@ -322,3 +323,94 @@ def get_random_collection_subset(
 
     except Exception as e:
         return [{"error": f"Failed to fetch samples from {collection}: {str(e)}"}]
+
+
+def get_collection_stats() -> dict[str, Any]:
+    """
+    Get statistics for all NMDC collections including document counts.
+
+    This tool provides information about what collections are available
+    and how many documents are in each collection. This is useful for:
+    - Discovering available NMDC collections
+    - Understanding collection sizes for efficient sampling strategies
+    - Validating that requested sample sizes don't exceed collection size
+
+    Returns:
+        Dict[str, Any]: Dictionary containing collection statistics where keys
+            are collection names (e.g., "biosample_set", "study_set") and values
+            contain statistics including document counts
+
+    Examples:
+        - get_collection_stats() # Get stats for all collections
+        - Result: {"biosample_set": {"count": 15234}, "study_set": {"count": 543}, ...}
+    """
+    try:
+        stats_data = fetch_nmdc_collection_stats(verbose=True)
+        return stats_data
+    except Exception as e:
+        return {"error": f"Failed to fetch collection statistics: {str(e)}"}
+
+
+def get_all_collection_ids(
+    collection: str = "biosample_set",
+    force: bool = False,
+) -> dict[str, Any]:
+    """
+    Get all document IDs from a specified NMDC collection.
+
+    ⚠️  WARNING: This tool is designed for small to medium collections only.
+    For collections with 20,000+ documents, this approach becomes inefficient.
+    Set force=True to override this safety check.
+
+    This tool is useful for:
+    - Client-side random sampling from smaller collections
+    - Getting complete ID lists for analysis
+    - Efficient sampling when you know collection size is reasonable
+
+    Args:
+        collection (str): NMDC collection name (e.g., "biosample_set", "study_set")
+        force (bool): Set to True to override the safety warning and fetch all IDs
+
+    Returns:
+        Dict[str, Any]: Either a list of IDs or a safety warning for large collections
+
+    Examples:
+        - get_all_collection_ids("study_set")  # Will fetch if reasonable size
+        - get_all_collection_ids("biosample_set", force=True)  # Override safety check
+    """
+
+    # Safety check: warn about potentially large collections unless force=True
+    if collection == "biosample_set" and not force:
+        return {
+            "warning": f"Collection '{collection}' is likely to contain "
+            f"15,000+ documents. Fetching all IDs may be slow and memory-intensive. "
+            f"Consider using get_random_collection_subset() instead, "
+            f"or set force=True to proceed.",
+            "collection": collection,
+            "recommended_alternative": "get_random_collection_subset()",
+            "override_option": "Set force=True to proceed anyway",
+        }
+
+    # Proceed with fetching all IDs
+    try:
+        print(f"Fetching all IDs from {collection}...")
+
+        all_records = fetch_nmdc_collection_records_paged(
+            collection=collection,
+            projection=["id"],  # Only fetch ID field to minimize data transfer
+            max_page_size=1000,  # Use larger page size for efficiency
+            verbose=True,
+        )
+
+        # Extract just the IDs from the records
+        all_ids = [record.get("id") for record in all_records if record.get("id")]
+
+        return {
+            "collection": collection,
+            "fetched_ids": len(all_ids),
+            "ids": all_ids,
+            "note": f"Successfully fetched {len(all_ids):,} IDs from {collection}",
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to fetch IDs from {collection}: {str(e)}"}
