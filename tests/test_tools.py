@@ -6,7 +6,9 @@ from nmdc_mcp.tools import (
     get_samples_by_ecosystem,
     get_samples_in_elevation_range,
     get_samples_within_lat_lon_bounding_box,
+    get_study_doi_details,
     get_study_for_biosample,
+    search_studies_by_doi_criteria,
 )
 
 
@@ -182,6 +184,7 @@ class TestNMDCTools(unittest.TestCase):
         self.assertEqual(len(result["entities"]), 2)
         self.assertEqual(result["entities"][0]["id"], "nmdc:bsm-11-abc123")
         self.assertEqual(result["entities"][1]["id"], "nmdc:bsm-11-def456")
+        self.assertEqual(result["requested_ids"], entity_ids)
         self.assertNotIn("missing_ids", result)
 
     @patch("nmdc_mcp.tools.fetch_nmdc_entities_by_ids_with_projection")
@@ -206,6 +209,7 @@ class TestNMDCTools(unittest.TestCase):
         self.assertEqual(len(result["entities"]), 1)
         self.assertIn("missing_ids", result)
         self.assertEqual(result["missing_ids"], ["nmdc:bsm-11-missing"])
+        self.assertEqual(result["requested_ids"], entity_ids)
         self.assertIn("1 entities were not found", result["note"])
 
     def test_get_entities_by_ids_with_projection_empty_list(self):
@@ -218,6 +222,7 @@ class TestNMDCTools(unittest.TestCase):
         self.assertEqual(result["error"], "entity_ids list cannot be empty")
         self.assertEqual(result["requested_count"], 0)
         self.assertEqual(result["fetched_count"], 0)
+        self.assertEqual(result["requested_ids"], [])
 
     def test_get_entities_by_ids_with_projection_too_many_ids(self):
         """Test get_entities_by_ids_with_projection with too many entity IDs."""
@@ -235,6 +240,8 @@ class TestNMDCTools(unittest.TestCase):
         )
         self.assertEqual(result["requested_count"], 101)
         self.assertEqual(result["fetched_count"], 0)
+        self.assertEqual(result["requested_ids"], entity_ids)
+        self.assertEqual(result["collection"], "biosample_set")
 
     @patch("nmdc_mcp.tools.fetch_nmdc_entities_by_ids_with_projection")
     def test_get_entities_by_ids_with_projection_api_error(self, mock_fetch):
@@ -252,35 +259,288 @@ class TestNMDCTools(unittest.TestCase):
         self.assertIn("API connection failed", result["error"])
         self.assertEqual(result["requested_count"], 1)
         self.assertEqual(result["fetched_count"], 0)
+        self.assertEqual(result["requested_ids"], entity_ids)
+
+    def test_get_entities_by_ids_with_projection_requested_ids_none(self):
+        """Test that get_entities_by_ids_with_projection raises TypeError for None."""
+        # Test the case where entity_ids is explicitly None
+        # Verify that the function raises a TypeError
+        from nmdc_mcp.tools import get_entities_by_ids_with_projection
+
+        # Simulate the error path where entity_ids could be None
+        with self.assertRaises(TypeError):
+            get_entities_by_ids_with_projection(
+                entity_ids=None, collection="biosample_set"
+            )
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_entity_by_id_with_projection")
+    def test_get_study_doi_details_basic(self, mock_fetch):
+        """Test basic get_study_doi_details functionality."""
+        # Mock the API response
+        mock_fetch.return_value = {
+            "id": "nmdc:sty-11-abc123",
+            "name": "Test Study",
+            "associated_dois": [
+                {
+                    "doi_value": "doi:10.46936/10.25585/60001211",
+                    "doi_category": "award_doi",
+                    "doi_provider": "jgi",
+                    "type": "nmdc:Doi",
+                },
+                {
+                    "doi_value": "doi:10.25345/C5CC0V509",
+                    "doi_category": "dataset_doi",
+                    "doi_provider": "massive",
+                    "type": "nmdc:Doi",
+                },
+            ],
+        }
+
+        # Test the function
+        result = get_study_doi_details("nmdc:sty-11-abc123")
+
+        # Verify the API was called correctly
+        mock_fetch.assert_called_once_with(
+            entity_id="nmdc:sty-11-abc123",
+            collection="study_set",
+            projection=["id", "name", "title", "associated_dois"],
+            verbose=True,
+        )
+
+        # Verify the result
+        self.assertEqual(result["study_id"], "nmdc:sty-11-abc123")
+        self.assertEqual(result["study_name"], "Test Study")
+        self.assertEqual(result["doi_count"], 2)
+        self.assertEqual(len(result["associated_dois"]), 2)
+        self.assertEqual(result["doi_categories_summary"]["award_doi"], 1)
+        self.assertEqual(result["doi_categories_summary"]["dataset_doi"], 1)
+        self.assertIn("Found 2 DOI(s)", result["note"])
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_entity_by_id_with_projection")
+    def test_get_study_doi_details_no_dois(self, mock_fetch):
+        """Test get_study_doi_details with study that has no DOIs."""
+        # Mock response with no DOIs
+        mock_fetch.return_value = {
+            "id": "nmdc:sty-11-nodois",
+            "name": "Study with No DOIs",
+            "associated_dois": [],
+        }
+
+        result = get_study_doi_details("nmdc:sty-11-nodois")
+
+        self.assertEqual(result["study_id"], "nmdc:sty-11-nodois")
+        self.assertEqual(result["study_name"], "Study with No DOIs")
+        self.assertEqual(result["doi_count"], 0)
+        self.assertEqual(len(result["associated_dois"]), 0)
+        self.assertIn("No DOIs found", result["note"])
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_entity_by_id_with_projection")
+    def test_get_study_doi_details_study_not_found(self, mock_fetch):
+        """Test get_study_doi_details with non-existent study."""
+        # Mock response for not found
+        mock_fetch.return_value = None
+
+        result = get_study_doi_details("nmdc:sty-11-missing")
+
+        self.assertIn("error", result)
+        self.assertEqual(result["error"], "Study 'nmdc:sty-11-missing' not found")
+        self.assertEqual(result["study_id"], "nmdc:sty-11-missing")
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_entity_by_id_with_projection")
+    def test_get_study_doi_details_api_error(self, mock_fetch):
+        """Test get_study_doi_details handling API errors."""
+        # Mock an API error
+        mock_fetch.side_effect = Exception("API connection failed")
+
+        result = get_study_doi_details("nmdc:sty-11-abc123")
+
+        self.assertIn("error", result)
+        self.assertIn("Failed to retrieve DOI details", result["error"])
+        self.assertIn("API connection failed", result["error"])
+        self.assertEqual(result["study_id"], "nmdc:sty-11-abc123")
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_collection_records_paged")
+    def test_search_studies_by_doi_criteria_basic(self, mock_fetch):
+        """Test basic search_studies_by_doi_criteria functionality."""
+        # Mock the API response with studies containing DOIs
+        mock_fetch.return_value = [
+            {
+                "id": "nmdc:sty-11-abc123",
+                "name": "Test Study 1",
+                "associated_dois": [
+                    {
+                        "doi_value": "doi:10.25585/12345",
+                        "doi_category": "dataset_doi",
+                        "doi_provider": "jgi",
+                        "type": "nmdc:Doi",
+                    }
+                ],
+            },
+            {
+                "id": "nmdc:sty-11-def456",
+                "name": "Test Study 2",
+                "associated_dois": [
+                    {
+                        "doi_value": "doi:10.46936/67890",
+                        "doi_category": "award_doi",
+                        "doi_provider": "emsl",
+                        "type": "nmdc:Doi",
+                    }
+                ],
+            },
+        ]
+
+        # Test search by provider
+        result = search_studies_by_doi_criteria(doi_provider="jgi")
+
+        # Verify the API was called correctly
+        mock_fetch.assert_called_once_with(
+            collection="study_set",
+            projection=["id", "name", "title", "associated_dois"],
+            max_records=None,
+            verbose=False,
+        )
+
+        # Verify the result
+        self.assertEqual(len(result["matching_studies"]), 1)
+        self.assertEqual(
+            result["matching_studies"][0]["study_id"], "nmdc:sty-11-abc123"
+        )
+        self.assertEqual(result["matching_studies"][0]["matching_doi_count"], 1)
+        self.assertEqual(result["search_summary"]["matching_studies_found"], 1)
+        self.assertEqual(result["search_summary"]["total_matching_dois"], 1)
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_collection_records_paged")
+    def test_search_studies_by_doi_criteria_combined_filters(self, mock_fetch):
+        """Test search_studies_by_doi_criteria with multiple criteria."""
+        # Mock response with studies having various DOI types
+        mock_fetch.return_value = [
+            {
+                "id": "nmdc:sty-11-abc123",
+                "name": "Test Study 1",
+                "associated_dois": [
+                    {
+                        "doi_value": "doi:10.25585/12345",
+                        "doi_category": "dataset_doi",
+                        "doi_provider": "jgi",
+                        "type": "nmdc:Doi",
+                    },
+                    {
+                        "doi_value": "doi:10.25585/67890",
+                        "doi_category": "award_doi",
+                        "doi_provider": "jgi",
+                        "type": "nmdc:Doi",
+                    },
+                ],
+            }
+        ]
+
+        # Test combined search criteria
+        result = search_studies_by_doi_criteria(
+            doi_provider="jgi", doi_category="award_doi", doi_value_contains="10.25585"
+        )
+
+        # Should find 1 study with 1 matching DOI (award_doi from jgi containing 10.25585)  # noqa: E501
+        self.assertEqual(len(result["matching_studies"]), 1)
+        self.assertEqual(result["matching_studies"][0]["matching_doi_count"], 1)
+        self.assertEqual(
+            result["matching_studies"][0]["matching_dois"][0]["doi_category"],
+            "award_doi",
+        )
+
+    def test_search_studies_by_doi_criteria_invalid_provider(self):
+        """Test search_studies_by_doi_criteria with invalid provider."""
+        result = search_studies_by_doi_criteria(doi_provider="invalid_provider")
+
+        self.assertIn("error", result)
+        self.assertIn("Invalid doi_provider", result["error"])
+        self.assertIn("invalid_provider", result["error"])
+
+    def test_search_studies_by_doi_criteria_invalid_category(self):
+        """Test search_studies_by_doi_criteria with invalid category."""
+        result = search_studies_by_doi_criteria(doi_category="invalid_category")
+
+        self.assertIn("error", result)
+        self.assertIn("Invalid doi_category", result["error"])
+        self.assertIn("invalid_category", result["error"])
+
+    def test_search_studies_by_doi_criteria_no_criteria(self):
+        """Test search_studies_by_doi_criteria with no search criteria."""
+        result = search_studies_by_doi_criteria()
+
+        self.assertIn("error", result)
+        self.assertEqual(
+            result["error"], "At least one search criterion must be provided"
+        )
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_collection_records_paged")
+    def test_search_studies_by_doi_criteria_no_matches(self, mock_fetch):
+        """Test search_studies_by_doi_criteria when no matches are found."""
+        # Mock response with studies that don't match criteria
+        mock_fetch.return_value = [
+            {
+                "id": "nmdc:sty-11-abc123",
+                "name": "Test Study 1",
+                "associated_dois": [
+                    {
+                        "doi_value": "doi:10.25585/12345",
+                        "doi_category": "dataset_doi",
+                        "doi_provider": "jgi",
+                        "type": "nmdc:Doi",
+                    }
+                ],
+            }
+        ]
+
+        # Search for provider that doesn't exist in data
+        result = search_studies_by_doi_criteria(doi_provider="zenodo")
+
+        self.assertEqual(len(result["matching_studies"]), 0)
+        self.assertEqual(result["search_summary"]["matching_studies_found"], 0)
+        self.assertIn("No studies found", result["note"])
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_collection_records_paged")
+    def test_search_studies_by_doi_criteria_api_error(self, mock_fetch):
+        """Test search_studies_by_doi_criteria handling API errors."""
+        # Mock an API error
+        mock_fetch.side_effect = Exception("API connection failed")
+
+        result = search_studies_by_doi_criteria(doi_provider="jgi")
+
+        self.assertIn("error", result)
+        self.assertIn("Failed to search studies by DOI criteria", result["error"])
+        self.assertIn("API connection failed", result["error"])
 
     @patch("nmdc_mcp.tools.get_entity_by_id")
     @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
-    def test_get_study_for_biosample_success(self, mock_get_with_projection, mock_get_entity):
+    def test_get_study_for_biosample_success(
+        self, mock_get_with_projection, mock_get_entity
+    ):
         """Test successful retrieval of study for biosample."""
         # Mock biosample data with associated study
         mock_get_with_projection.return_value = {
             "id": "nmdc:bsm-11-abc123",
             "name": "Test Biosample",
-            "associated_studies": ["nmdc:sty-11-xyz789"]
+            "associated_studies": ["nmdc:sty-11-xyz789"],
         }
-        
+
         # Mock study data
         mock_get_entity.return_value = {
             "id": "nmdc:sty-11-xyz789",
             "name": "Test Study",
-            "description": "A test study"
+            "description": "A test study",
         }
-        
+
         result = get_study_for_biosample("nmdc:bsm-11-abc123")
-        
+
         # Verify function calls
         mock_get_with_projection.assert_called_once_with(
             entity_id="nmdc:bsm-11-abc123",
             collection="biosample_set",
-            projection=["id", "name", "associated_studies"]
+            projection=["id", "name", "associated_studies"],
         )
         mock_get_entity.assert_called_once_with("nmdc:sty-11-xyz789")
-        
+
         # Verify result
         self.assertEqual(result["biosample_id"], "nmdc:bsm-11-abc123")
         self.assertEqual(result["biosample_name"], "Test Biosample")
@@ -289,17 +549,19 @@ class TestNMDCTools(unittest.TestCase):
         self.assertIn("Successfully found study", result["note"])
 
     @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
-    def test_get_study_for_biosample_no_associated_studies(self, mock_get_with_projection):
+    def test_get_study_for_biosample_no_associated_studies(
+        self, mock_get_with_projection
+    ):
         """Test handling biosample with no associated studies."""
         # Mock biosample data without associated studies
         mock_get_with_projection.return_value = {
             "id": "nmdc:bsm-11-abc123",
             "name": "Test Biosample",
-            "associated_studies": []
+            "associated_studies": [],
         }
-        
+
         result = get_study_for_biosample("nmdc:bsm-11-abc123")
-        
+
         # Verify result
         self.assertEqual(result["biosample_id"], "nmdc:bsm-11-abc123")
         self.assertEqual(result["biosample_name"], "Test Biosample")
@@ -308,62 +570,66 @@ class TestNMDCTools(unittest.TestCase):
 
     @patch("nmdc_mcp.tools.get_entity_by_id")
     @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
-    def test_get_study_for_biosample_multiple_studies(self, mock_get_with_projection, mock_get_entity):
+    def test_get_study_for_biosample_multiple_studies(
+        self, mock_get_with_projection, mock_get_entity
+    ):
         """Test handling biosample with multiple associated studies."""
         # Mock biosample data with multiple associated studies
         mock_get_with_projection.return_value = {
             "id": "nmdc:bsm-11-abc123",
             "name": "Test Biosample",
-            "associated_studies": ["nmdc:sty-11-xyz789", "nmdc:sty-11-def456"]
+            "associated_studies": ["nmdc:sty-11-xyz789", "nmdc:sty-11-def456"],
         }
-        
+
         # Mock study data (only first study is fetched)
         mock_get_entity.return_value = {
             "id": "nmdc:sty-11-xyz789",
-            "name": "Primary Study"
+            "name": "Primary Study",
         }
-        
+
         result = get_study_for_biosample("nmdc:bsm-11-abc123")
-        
+
         # Verify only first study is fetched
         mock_get_entity.assert_called_once_with("nmdc:sty-11-xyz789")
-        
+
         # Verify result includes additional study IDs
         self.assertEqual(result["study_id"], "nmdc:sty-11-xyz789")
         self.assertEqual(result["additional_study_ids"], ["nmdc:sty-11-def456"])
         self.assertIn("1 additional studies found", result["note"])
 
     @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
-    def test_get_study_for_biosample_biosample_not_found(self, mock_get_with_projection):
+    def test_get_study_for_biosample_biosample_not_found(
+        self, mock_get_with_projection
+    ):
         """Test handling when biosample is not found."""
         # Mock error response for biosample lookup
         mock_get_with_projection.return_value = {
             "error": "Entity 'nmdc:bsm-11-missing' not found"
         }
-        
+
         result = get_study_for_biosample("nmdc:bsm-11-missing")
-        
+
         # Verify error is passed through
         self.assertIn("error", result)
 
     @patch("nmdc_mcp.tools.get_entity_by_id")
     @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
-    def test_get_study_for_biosample_study_not_found(self, mock_get_with_projection, mock_get_entity):
+    def test_get_study_for_biosample_study_not_found(
+        self, mock_get_with_projection, mock_get_entity
+    ):
         """Test handling when study is not found."""
         # Mock biosample data with associated study
         mock_get_with_projection.return_value = {
             "id": "nmdc:bsm-11-abc123",
             "name": "Test Biosample",
-            "associated_studies": ["nmdc:sty-11-missing"]
+            "associated_studies": ["nmdc:sty-11-missing"],
         }
-        
+
         # Mock error response for study lookup
-        mock_get_entity.return_value = {
-            "error": "Study not found"
-        }
-        
+        mock_get_entity.return_value = {"error": "Study not found"}
+
         result = get_study_for_biosample("nmdc:bsm-11-abc123")
-        
+
         # Verify error handling
         self.assertEqual(result["biosample_id"], "nmdc:bsm-11-abc123")
         self.assertEqual(result["study_id"], "nmdc:sty-11-missing")

@@ -17,7 +17,9 @@ from nmdc_mcp.tools import (
     get_samples_by_ecosystem,
     get_samples_in_elevation_range,
     get_samples_within_lat_lon_bounding_box,
+    get_study_doi_details,
     get_study_for_biosample,
+    search_studies_by_doi_criteria,
 )
 
 # Create the FastMCP instance at module level
@@ -36,6 +38,8 @@ mcp.tool(get_entity_by_id_with_projection)
 mcp.tool(get_entities_by_ids_with_projection)
 mcp.tool(get_study_for_biosample)
 mcp.tool(get_biosamples_for_study)
+mcp.tool(get_study_doi_details)
+mcp.tool(search_studies_by_doi_criteria)
 
 
 def main() -> None:
