@@ -49,13 +49,13 @@ mypy:
 build:
 	uv build
 
-# Upload to TestPyPI (using token-based auth)
+# Upload to TestPyPI (using token-based auth - set UV_PUBLISH_TOKEN environment variable first)
 upload-test:
-	uv run twine upload --repository testpypi dist/*
+	uv publish --publish-url https://test.pypi.org/legacy/
 
-# Upload to PyPI (using token-based auth - set TWINE_PASSWORD environment variable first)
+# Upload to PyPI (using token-based auth - set UV_PUBLISH_TOKEN environment variable first)  
 upload:
-	uv run twine upload dist/*
+	uv publish
 
 # Complete release workflow (mirrors original CI approach)
 release: clean install test-coverage build

@@ -57,7 +57,6 @@ dev = [
     # Build and packaging
     "hatch-vcs>=0.5.0",
     "hatchling>=1.27.0",
-    "twine>=4.0.0",
     # Type stubs
     "types-requests>=2.32.4.20250611",
 ]
