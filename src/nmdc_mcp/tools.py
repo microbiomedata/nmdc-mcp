@@ -743,9 +743,10 @@ def get_study_for_biosample(biosample_id: str) -> dict[str, Any]:
         # If there are multiple associated studies, include them in the response
         if len(associated_studies) > 1:
             result["additional_study_ids"] = associated_studies[1:]
-            result[
-                "note"
-            ] += f" (Note: {len(associated_studies)-1} additional studies found)"
+            result["note"] += (
+                f" (Note: {len(associated_studies)-1} additional "
+                f"{'study' if len(associated_studies) == 2 else 'studies'} found)"
+            )
 
         return result
 
@@ -756,6 +757,9 @@ def get_study_for_biosample(biosample_id: str) -> dict[str, Any]:
             "study_id": None,
             "study": None,
             "error": f"Failed to get study for biosample {biosample_id}: {str(e)}",
+            "note": (
+                f"Error occurred while retrieving study for biosample {biosample_id}"
+            ),
         }
 
 
@@ -831,6 +835,7 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
             "study_id": study_id,
             "biosamples": [],
             "error": f"Failed to get biosamples for study {study_id}: {str(e)}",
+            "note": f"Error occurred while retrieving biosamples for study {study_id}",
         }
 
 

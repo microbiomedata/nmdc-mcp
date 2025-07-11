@@ -596,7 +596,7 @@ class TestNMDCTools(unittest.TestCase):
         # Verify result includes additional study IDs
         self.assertEqual(result["study_id"], "nmdc:sty-11-xyz789")
         self.assertEqual(result["additional_study_ids"], ["nmdc:sty-11-def456"])
-        self.assertIn("1 additional studies found", result["note"])
+        self.assertIn("1 additional study found", result["note"])
 
     @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
     def test_get_study_for_biosample_biosample_not_found(
