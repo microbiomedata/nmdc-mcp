@@ -39,17 +39,67 @@ mcp.run()
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/nmdc-mcp.git
+git clone https://github.com/microbiomedata/nmdc-mcp.git
 cd nmdc-mcp
 
 # Install development dependencies
-uv pip install -e ".[dev]"
+uv sync --group dev
 ```
 
-### Running Tests
+### Development Workflow
+
+The project uses a comprehensive Makefile for development tasks:
 
 ```bash
-pytest
+# Run all development checks (tests, formatting, linting, type checking)
+make all
+
+# Individual commands
+make dev           # Install development dependencies
+make test-coverage # Run tests with coverage
+make format        # Format code with black
+make lint          # Lint with ruff
+make mypy          # Type checking
+make deptry        # Check for unused dependencies
+make build         # Build package
+```
+
+### Testing
+
+```bash
+# Run all tests with coverage
+make test-coverage
+
+# Run specific test types
+make test-unit         # Unit tests only
+make test-integration  # Integration tests
+make test-real-api     # Tests against real NMDC API
+make test-mcp          # Test MCP protocol
+```
+
+### MCP Integration
+
+#### Claude Desktop Setup
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "nmdc-mcp": {
+      "command": "uvx",
+      "args": ["nmdc-mcp"]
+    }
+  }
+}
+```
+
+#### Claude Code MCP Setup
+```bash
+claude mcp add -s project nmdc-mcp uvx nmdc-mcp
+```
+
+#### Goose Setup
+```bash
+goose session --with-extension "uvx nmdc-mcp"
 ```
 
 ## License
