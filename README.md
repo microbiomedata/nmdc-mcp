@@ -4,16 +4,10 @@ A fastmcp-based tool for writing prompts against data in the NMDC database.
 
 ## Installation
 
-You can install the package from source:
+You can install the package from source using uv:
 
 ```bash
-pip install -e .
-```
-
-Or using uv:
-
-```bash
-uv pip install -e .
+uv sync
 ```
 
 ## Usage
