@@ -669,6 +669,148 @@ def get_random_collection_ids(
         return {"error": f"Failed to fetch random IDs from {collection}: {str(e)}"}
 
 
+def get_study_for_biosample(biosample_id: str) -> dict[str, Any]:
+    """
+    Get the study associated with a specific biosample.
+
+    Args:
+        biosample_id (str): NMDC biosample ID (e.g., "nmdc:bsm-11-abc123")
+
+    Returns:
+        Dict[str, Any]: Dictionary containing the study information and metadata
+
+    Examples:
+        - get_study_for_biosample("nmdc:bsm-11-abc123")
+    """
+    try:
+        # Get the biosample with only the id and associated_studies fields
+        biosample_data = get_entity_by_id_with_projection(
+            entity_id=biosample_id,
+            collection="biosample_set",
+            projection=["id", "name", "associated_studies"]
+        )
+        
+        if "error" in biosample_data:
+            return biosample_data
+        
+        associated_studies = biosample_data.get("associated_studies", [])
+        
+        if not associated_studies:
+            return {
+                "biosample_id": biosample_id,
+                "biosample_name": biosample_data.get("name", ""),
+                "study": None,
+                "note": f"No associated studies found for biosample {biosample_id}"
+            }
+        
+        # Get the first (and typically only) associated study
+        study_id = associated_studies[0]
+        study_data = get_entity_by_id(study_id)
+        
+        if "error" in study_data:
+            return {
+                "biosample_id": biosample_id,
+                "biosample_name": biosample_data.get("name", ""),
+                "study_id": study_id,
+                "study": None,
+                "error": f"Failed to retrieve study {study_id}: {study_data.get('error', 'Unknown error')}"
+            }
+        
+        result = {
+            "biosample_id": biosample_id,
+            "biosample_name": biosample_data.get("name", ""),
+            "study_id": study_id,
+            "study": study_data,
+            "note": f"Successfully found study {study_id} for biosample {biosample_id}"
+        }
+        
+        # If there are multiple associated studies, include them in the response
+        if len(associated_studies) > 1:
+            result["additional_study_ids"] = associated_studies[1:]
+            result["note"] += f" (Note: {len(associated_studies)-1} additional studies found)"
+        
+        return result
+        
+    except Exception as e:
+        return {
+            "biosample_id": biosample_id,
+            "study": None,
+            "error": f"Failed to get study for biosample {biosample_id}: {str(e)}"
+        }
+
+
+def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, Any]:
+    """
+    Get biosamples associated with a specific study.
+
+    Args:
+        study_id (str): NMDC study ID (e.g., "nmdc:sty-11-xyz789")
+        max_records (int): Maximum number of biosamples to return
+
+    Returns:
+        Dict[str, Any]: Dictionary containing the biosamples and metadata
+
+    Examples:
+        - get_biosamples_for_study("nmdc:sty-11-xyz789")
+        - get_biosamples_for_study("nmdc:sty-11-xyz789", max_records=100)
+    """
+    try:
+        # First verify the study exists
+        study_data = get_entity_by_id_with_projection(
+            entity_id=study_id,
+            collection="study_set",
+            projection=["id", "name"]
+        )
+        
+        if "error" in study_data:
+            return {
+                "study_id": study_id,
+                "biosamples": [],
+                "error": f"Study {study_id} not found: {study_data.get('error', 'Unknown error')}"
+            }
+        
+        # Search for biosamples that have this study in their associated_studies field
+        filter_criteria = {"associated_studies": study_id}
+        
+        projection = [
+            "id",
+            "name",
+            "collection_date",
+            "ecosystem",
+            "ecosystem_category", 
+            "ecosystem_type",
+            "ecosystem_subtype",
+            "geo_loc_name",
+            "associated_studies"
+        ]
+        
+        biosamples = fetch_nmdc_biosample_records_paged(
+            filter_criteria=filter_criteria,
+            projection=projection,
+            max_records=max_records,
+            verbose=True,
+        )
+        
+        # Format the collection_date field to make it more readable
+        for biosample in biosamples:
+            clean_collection_date(biosample)
+        
+        return {
+            "study_id": study_id,
+            "study_name": study_data.get("name", ""),
+            "biosamples": biosamples,
+            "biosample_count": len(biosamples),
+            "note": f"Found {len(biosamples)} biosamples associated with study {study_id}"
+        }
+        
+    except Exception as e:
+        return {
+            "study_id": study_id,
+            "biosamples": [],
+            "error": f"Failed to get biosamples for study {study_id}: {str(e)}"
+        }
+
+
 def get_entities_by_ids_with_projection(
     entity_ids: list[str],
     collection: str,

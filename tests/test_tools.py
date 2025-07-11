@@ -6,6 +6,7 @@ from nmdc_mcp.tools import (
     get_samples_by_ecosystem,
     get_samples_in_elevation_range,
     get_samples_within_lat_lon_bounding_box,
+    get_study_for_biosample,
 )
 
 
@@ -251,6 +252,124 @@ class TestNMDCTools(unittest.TestCase):
         self.assertIn("API connection failed", result["error"])
         self.assertEqual(result["requested_count"], 1)
         self.assertEqual(result["fetched_count"], 0)
+
+    @patch("nmdc_mcp.tools.get_entity_by_id")
+    @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
+    def test_get_study_for_biosample_success(self, mock_get_with_projection, mock_get_entity):
+        """Test successful retrieval of study for biosample."""
+        # Mock biosample data with associated study
+        mock_get_with_projection.return_value = {
+            "id": "nmdc:bsm-11-abc123",
+            "name": "Test Biosample",
+            "associated_studies": ["nmdc:sty-11-xyz789"]
+        }
+        
+        # Mock study data
+        mock_get_entity.return_value = {
+            "id": "nmdc:sty-11-xyz789",
+            "name": "Test Study",
+            "description": "A test study"
+        }
+        
+        result = get_study_for_biosample("nmdc:bsm-11-abc123")
+        
+        # Verify function calls
+        mock_get_with_projection.assert_called_once_with(
+            entity_id="nmdc:bsm-11-abc123",
+            collection="biosample_set",
+            projection=["id", "name", "associated_studies"]
+        )
+        mock_get_entity.assert_called_once_with("nmdc:sty-11-xyz789")
+        
+        # Verify result
+        self.assertEqual(result["biosample_id"], "nmdc:bsm-11-abc123")
+        self.assertEqual(result["biosample_name"], "Test Biosample")
+        self.assertEqual(result["study_id"], "nmdc:sty-11-xyz789")
+        self.assertEqual(result["study"]["name"], "Test Study")
+        self.assertIn("Successfully found study", result["note"])
+
+    @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
+    def test_get_study_for_biosample_no_associated_studies(self, mock_get_with_projection):
+        """Test handling biosample with no associated studies."""
+        # Mock biosample data without associated studies
+        mock_get_with_projection.return_value = {
+            "id": "nmdc:bsm-11-abc123",
+            "name": "Test Biosample",
+            "associated_studies": []
+        }
+        
+        result = get_study_for_biosample("nmdc:bsm-11-abc123")
+        
+        # Verify result
+        self.assertEqual(result["biosample_id"], "nmdc:bsm-11-abc123")
+        self.assertEqual(result["biosample_name"], "Test Biosample")
+        self.assertIsNone(result["study"])
+        self.assertIn("No associated studies found", result["note"])
+
+    @patch("nmdc_mcp.tools.get_entity_by_id")
+    @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
+    def test_get_study_for_biosample_multiple_studies(self, mock_get_with_projection, mock_get_entity):
+        """Test handling biosample with multiple associated studies."""
+        # Mock biosample data with multiple associated studies
+        mock_get_with_projection.return_value = {
+            "id": "nmdc:bsm-11-abc123",
+            "name": "Test Biosample",
+            "associated_studies": ["nmdc:sty-11-xyz789", "nmdc:sty-11-def456"]
+        }
+        
+        # Mock study data (only first study is fetched)
+        mock_get_entity.return_value = {
+            "id": "nmdc:sty-11-xyz789",
+            "name": "Primary Study"
+        }
+        
+        result = get_study_for_biosample("nmdc:bsm-11-abc123")
+        
+        # Verify only first study is fetched
+        mock_get_entity.assert_called_once_with("nmdc:sty-11-xyz789")
+        
+        # Verify result includes additional study IDs
+        self.assertEqual(result["study_id"], "nmdc:sty-11-xyz789")
+        self.assertEqual(result["additional_study_ids"], ["nmdc:sty-11-def456"])
+        self.assertIn("1 additional studies found", result["note"])
+
+    @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
+    def test_get_study_for_biosample_biosample_not_found(self, mock_get_with_projection):
+        """Test handling when biosample is not found."""
+        # Mock error response for biosample lookup
+        mock_get_with_projection.return_value = {
+            "error": "Entity 'nmdc:bsm-11-missing' not found"
+        }
+        
+        result = get_study_for_biosample("nmdc:bsm-11-missing")
+        
+        # Verify error is passed through
+        self.assertIn("error", result)
+
+    @patch("nmdc_mcp.tools.get_entity_by_id")
+    @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
+    def test_get_study_for_biosample_study_not_found(self, mock_get_with_projection, mock_get_entity):
+        """Test handling when study is not found."""
+        # Mock biosample data with associated study
+        mock_get_with_projection.return_value = {
+            "id": "nmdc:bsm-11-abc123",
+            "name": "Test Biosample",
+            "associated_studies": ["nmdc:sty-11-missing"]
+        }
+        
+        # Mock error response for study lookup
+        mock_get_entity.return_value = {
+            "error": "Study not found"
+        }
+        
+        result = get_study_for_biosample("nmdc:bsm-11-abc123")
+        
+        # Verify error handling
+        self.assertEqual(result["biosample_id"], "nmdc:bsm-11-abc123")
+        self.assertEqual(result["study_id"], "nmdc:sty-11-missing")
+        self.assertIsNone(result["study"])
+        self.assertIn("error", result)
+        self.assertIn("Failed to retrieve study", result["error"])
 
 
 if __name__ == "__main__":
