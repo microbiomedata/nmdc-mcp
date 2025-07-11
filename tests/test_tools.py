@@ -260,27 +260,16 @@ class TestNMDCTools(unittest.TestCase):
         self.assertEqual(result["requested_ids"], entity_ids)
 
     def test_get_entities_by_ids_with_projection_requested_ids_none(self):
-        """Test that requested_ids is empty list when entity_ids is None."""
+        """Test that get_entities_by_ids_with_projection raises TypeError for None input."""
         # Test the case where entity_ids is explicitly None
-        # This would typically be caught by the empty list check,
-        # but let's test the requested_ids behavior
+        # Verify that the function raises a TypeError
         from nmdc_mcp.tools import get_entities_by_ids_with_projection
 
         # Simulate the error path where entity_ids could be None
-        try:
-            result = get_entities_by_ids_with_projection(
+        with self.assertRaises(TypeError):
+            get_entities_by_ids_with_projection(
                 entity_ids=None, collection="biosample_set"
             )
-        except TypeError:
-            # If the function raises TypeError for None, that's also acceptable behavior
-            # In that case, let's test with an empty list which should definitely work
-            result = get_entities_by_ids_with_projection(
-                entity_ids=[], collection="biosample_set"
-            )
-
-        # Verify that requested_ids is an empty list
-        self.assertEqual(result["requested_ids"], [])
-
     @patch("nmdc_mcp.tools.fetch_nmdc_entity_by_id_with_projection")
     def test_get_study_doi_details_basic(self, mock_fetch):
         """Test basic get_study_doi_details functionality."""
