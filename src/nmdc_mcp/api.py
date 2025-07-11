@@ -152,7 +152,9 @@ def fetch_nmdc_collection_stats(
     stats_data = response.json()
 
     if verbose:
-        collections = list(stats_data.keys()) if isinstance(stats_data, dict) else "Unknown"
+        collections = (
+            list(stats_data.keys()) if isinstance(stats_data, dict) else "Unknown"
+        )
         print(f"Retrieved stats for collections: {collections}")
 
     return stats_data  # type: ignore[no-any-return]
