@@ -258,6 +258,63 @@ def fetch_nmdc_entity_by_id_with_projection(
     return None
 
 
+def fetch_nmdc_entities_by_ids_with_projection(
+    entity_ids: list[str],
+    collection: str,
+    projection: str | list[str] | None = None,
+    max_page_size: int = 100,
+    base_url: str = "https://api.microbiomedata.org/nmdcschema",
+    verbose: bool = False,
+) -> list[dict[str, Any]]:
+    """
+    Fetch multiple NMDC entities by their IDs with optional field projection.
+
+    This function uses the collection-specific endpoint with filtering to fetch
+    multiple documents by ID, allowing for field projection.
+
+    Args:
+        entity_ids: List of NMDC IDs
+            (e.g., ["nmdc:bsm-11-abc123", "nmdc:bsm-11-def456"])
+        collection: NMDC collection name (e.g., "biosample_set", "study_set")
+        projection: Fields to include in the response. Can be a comma-separated string
+            or a list of field names.
+        max_page_size: Maximum number of records to retrieve per API call
+        base_url: Base URL for NMDC schema API
+        verbose: Enable verbose logging
+
+    Returns:
+        List of dictionaries containing the entity data with projected fields
+
+    Raises:
+        requests.HTTPError: If the API request fails
+    """
+    if not entity_ids:
+        return []
+
+    # Use MongoDB $in operator to filter by multiple IDs
+    filter_criteria = {"id": {"$in": entity_ids}}
+
+    if verbose:
+        print(
+            f"Fetching {len(entity_ids)} entities from {collection} "
+            f"with filter: {filter_criteria}"
+        )
+
+    records = fetch_nmdc_collection_records_paged(
+        collection=collection,
+        max_page_size=max_page_size,
+        projection=projection,
+        filter_criteria=filter_criteria,
+        max_records=len(entity_ids),  # Limit to the number of IDs requested
+        verbose=verbose,
+    )
+
+    if verbose:
+        print(f"Retrieved {len(records)} entities from {collection}")
+
+    return records
+
+
 def fetch_nmdc_biosample_records_paged(
     max_page_size: int = 100,
     projection: str | list[str] | None = None,
