@@ -677,7 +677,15 @@ def get_study_for_biosample(biosample_id: str) -> dict[str, Any]:
         biosample_id (str): NMDC biosample ID (e.g., "nmdc:bsm-11-abc123")
 
     Returns:
-        Dict[str, Any]: Dictionary containing the study information and metadata
+        Dict[str, Any]: Dictionary containing the study information and metadata.
+            Possible keys include:
+            - biosample_id (str): The input biosample ID
+            - biosample_name (str): Name of the biosample (empty string if unavailable)
+            - study_id (str | None): ID of the associated study
+            - study (dict | None): Complete study data object
+            - error (str): Error message (only present if an error occurred)
+            - note (str): Human-readable summary of the operation
+            - additional_study_ids (list[str]): Additional study IDs if multiple found
 
     Examples:
         - get_study_for_biosample("nmdc:bsm-11-abc123")
@@ -739,6 +747,8 @@ def get_study_for_biosample(biosample_id: str) -> dict[str, Any]:
     except Exception as e:
         return {
             "biosample_id": biosample_id,
+            "biosample_name": "",
+            "study_id": None,
             "study": None,
             "error": f"Failed to get study for biosample {biosample_id}: {str(e)}",
         }

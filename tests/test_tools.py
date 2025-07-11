@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from nmdc_mcp.tools import (
+    get_biosamples_for_study,
     get_entities_by_ids_with_projection,
     get_samples_by_ecosystem,
     get_samples_in_elevation_range,
@@ -636,6 +637,73 @@ class TestNMDCTools(unittest.TestCase):
         self.assertIsNone(result["study"])
         self.assertIn("error", result)
         self.assertIn("Failed to retrieve study", result["error"])
+
+    @patch("nmdc_mcp.tools.clean_collection_date")
+    @patch("nmdc_mcp.tools.fetch_nmdc_biosample_records_paged")
+    @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
+    def test_get_biosamples_for_study_success(
+        self, mock_get_with_projection, mock_fetch_biosamples, mock_clean_date
+    ):
+        """Test successful retrieval of biosamples for a study."""
+        # Mock study data
+        mock_get_with_projection.return_value = {
+            "id": "nmdc:sty-11-xyz789",
+            "name": "Test Study",
+        }
+
+        # Mock biosample data
+        mock_biosamples = [
+            {"id": "nmdc:bsm-11-abc123", "name": "Biosample 1"},
+            {"id": "nmdc:bsm-11-def456", "name": "Biosample 2"},
+        ]
+        mock_fetch_biosamples.return_value = mock_biosamples
+
+        result = get_biosamples_for_study("nmdc:sty-11-xyz789")
+
+        # Verify correct API calls
+        mock_get_with_projection.assert_called_once_with(
+            entity_id="nmdc:sty-11-xyz789",
+            collection="study_set",
+            projection=["id", "name"],
+        )
+        mock_fetch_biosamples.assert_called_once()
+        self.assertEqual(mock_clean_date.call_count, 2)
+
+        # Verify result structure
+        self.assertEqual(result["study_id"], "nmdc:sty-11-xyz789")
+        self.assertEqual(result["study_name"], "Test Study")
+        self.assertEqual(result["biosamples"], mock_biosamples)
+        self.assertEqual(result["biosample_count"], 2)
+        self.assertIn("Found 2 biosamples", result["note"])
+
+    @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
+    def test_get_biosamples_for_study_study_not_found(self, mock_get_with_projection):
+        """Test handling when study is not found."""
+        # Mock error response for study lookup
+        mock_get_with_projection.return_value = {"error": "Study not found"}
+
+        result = get_biosamples_for_study("nmdc:sty-11-missing")
+
+        # Verify error handling
+        self.assertEqual(result["study_id"], "nmdc:sty-11-missing")
+        self.assertEqual(result["biosamples"], [])
+        self.assertIn("error", result)
+        self.assertIn("Study nmdc:sty-11-missing not found", result["error"])
+
+    @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
+    def test_get_biosamples_for_study_exception(self, mock_get_with_projection):
+        """Test handling when an exception occurs."""
+        # Mock exception
+        mock_get_with_projection.side_effect = Exception("Database connection error")
+
+        result = get_biosamples_for_study("nmdc:sty-11-xyz789")
+
+        # Verify exception handling
+        self.assertEqual(result["study_id"], "nmdc:sty-11-xyz789")
+        self.assertEqual(result["biosamples"], [])
+        self.assertIn("error", result)
+        self.assertIn("Failed to get biosamples for study", result["error"])
+        self.assertIn("Database connection error", result["error"])
 
 
 if __name__ == "__main__":
