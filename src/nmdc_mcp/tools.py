@@ -699,7 +699,11 @@ def get_study_for_biosample(biosample_id: str) -> dict[str, Any]:
         )
 
         if "error" in biosample_data:
-            return biosample_data
+            return {
+                "biosample_id": biosample_id,
+                "error": biosample_data.get("error", "Unknown error"),
+                "note": f"Failed to retrieve biosample {biosample_id}",
+            }
 
         associated_studies = biosample_data.get("associated_studies", [])
 
@@ -707,6 +711,7 @@ def get_study_for_biosample(biosample_id: str) -> dict[str, Any]:
             return {
                 "biosample_id": biosample_id,
                 "biosample_name": biosample_data.get("name", ""),
+                "study_id": None,
                 "study": None,
                 "note": f"No associated studies found for biosample {biosample_id}",
             }
