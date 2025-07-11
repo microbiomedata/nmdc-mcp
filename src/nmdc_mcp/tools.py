@@ -12,6 +12,7 @@ from .api import (
     fetch_nmdc_collection_names,
     fetch_nmdc_collection_records_paged,
     fetch_nmdc_collection_stats,
+    fetch_nmdc_entities_by_ids_with_projection,
     fetch_nmdc_entity_by_id,
     fetch_nmdc_entity_by_id_with_projection,
 )
@@ -650,3 +651,104 @@ def get_random_collection_ids(
 
     except Exception as e:
         return {"error": f"Failed to fetch random IDs from {collection}: {str(e)}"}
+
+
+def get_entities_by_ids_with_projection(
+    entity_ids: list[str],
+    collection: str,
+    projection: str | list[str] | None = None,
+    max_page_size: int = 100,
+) -> dict[str, Any]:
+    """
+    Retrieve multiple NMDC entities by their IDs with optional field projection.
+
+    This function allows you to fetch multiple documents at once with only specific
+    fields, which is useful for reducing response size and focusing on relevant data.
+
+    Args:
+        entity_ids (list[str]): List of NMDC entity IDs
+            (e.g., ["nmdc:bsm-11-abc123", "nmdc:bsm-11-def456"])
+        collection (str): NMDC collection name (e.g., "biosample_set", "study_set")
+        projection (str | list[str], optional): Fields to include in the response.
+            Can be a comma-separated string (e.g., "id,name,ecosystem") or a list
+            of field names (e.g., ["id", "name", "ecosystem"])
+        max_page_size (int): Maximum number of records to retrieve per API call
+
+    Returns:
+        Dict[str, Any]: Contains the fetched entities and metadata
+
+    Examples:
+        - get_entities_by_ids_with_projection(
+            ["nmdc:bsm-11-abc123", "nmdc:bsm-11-def456"],
+            "biosample_set",
+            "id,name,ecosystem"
+        )
+        - get_entities_by_ids_with_projection(
+            ["nmdc:bsm-11-abc123", "nmdc:bsm-11-def456"],
+            "biosample_set",
+            ["env_broad_scale", "env_local_scale", "env_medium"],
+        )
+    """
+    try:
+        if not entity_ids:
+            return {
+                "error": "entity_ids list cannot be empty",
+                "entities": [],
+                "requested_count": 0,
+                "fetched_count": 0,
+            }
+
+        if len(entity_ids) > 100:
+            return {
+                "error": "Too many entity IDs requested. Maximum is 100 per request.",
+                "entities": [],
+                "requested_count": len(entity_ids),
+                "fetched_count": 0,
+            }
+
+        entities = fetch_nmdc_entities_by_ids_with_projection(
+            entity_ids=entity_ids,
+            collection=collection,
+            projection=projection,
+            max_page_size=max_page_size,
+            verbose=True,
+        )
+
+        # Create a lookup to check which IDs were found
+        entity_map = {entity.get("id"): entity for entity in entities}
+        reordered_entities = [entity_map.get(entity_id) for entity_id in entity_ids if entity_map.get(entity_id)]
+        missing_ids = [
+            entity_id for entity_id in entity_ids if entity_id not in entity_map
+        ]
+
+        result = {
+            "collection": collection,
+            "entities": reordered_entities,
+            "requested_count": len(entity_ids),
+            "fetched_count": len(reordered_entities),
+            "requested_ids": entity_ids,
+        }
+
+        if missing_ids:
+            result["missing_ids"] = missing_ids
+            result["note"] = (
+                f"Successfully fetched {len(entities)} out of {len(entity_ids)} "
+                f"requested entities from {collection}. "
+                f"{len(missing_ids)} entities were not found."
+            )
+        else:
+            result["note"] = (
+                f"Successfully fetched all {len(entities)} requested entities "
+                f"from {collection}."
+            )
+
+        return result
+
+    except Exception as e:
+        return {
+            "error": f"Failed to fetch entities from {collection}: {str(e)}",
+            "entities": [],
+            "requested_count": len(entity_ids) if entity_ids else 0,
+            "fetched_count": 0,
+            "collection": collection,
+        }

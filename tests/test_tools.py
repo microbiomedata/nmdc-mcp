@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from nmdc_mcp.tools import (
+    get_entities_by_ids_with_projection,
     get_samples_by_ecosystem,
     get_samples_in_elevation_range,
     get_samples_within_lat_lon_bounding_box,
@@ -146,6 +147,110 @@ class TestNMDCTools(unittest.TestCase):
 
         # Should keep original value if parsing fails
         self.assertEqual(result[0]["collection_date"], "invalid-date")
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_entities_by_ids_with_projection")
+    def test_get_entities_by_ids_with_projection_basic(self, mock_fetch):
+        """Test basic get_entities_by_ids_with_projection functionality."""
+        # Mock the API response
+        mock_fetch.return_value = [
+            {"id": "nmdc:bsm-11-abc123", "name": "Sample 1", "ecosystem": "Soil"},
+            {"id": "nmdc:bsm-11-def456", "name": "Sample 2", "ecosystem": "Marine"},
+        ]
+
+        # Test the function
+        entity_ids = ["nmdc:bsm-11-abc123", "nmdc:bsm-11-def456"]
+        result = get_entities_by_ids_with_projection(
+            entity_ids=entity_ids,
+            collection="biosample_set",
+            projection="id,name,ecosystem",
+        )
+
+        # Verify the API was called correctly
+        mock_fetch.assert_called_once_with(
+            entity_ids=entity_ids,
+            collection="biosample_set",
+            projection="id,name,ecosystem",
+            max_page_size=100,
+            verbose=True,
+        )
+
+        # Verify the result
+        self.assertEqual(result["collection"], "biosample_set")
+        self.assertEqual(result["requested_count"], 2)
+        self.assertEqual(result["fetched_count"], 2)
+        self.assertEqual(len(result["entities"]), 2)
+        self.assertEqual(result["entities"][0]["id"], "nmdc:bsm-11-abc123")
+        self.assertEqual(result["entities"][1]["id"], "nmdc:bsm-11-def456")
+        self.assertNotIn("missing_ids", result)
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_entities_by_ids_with_projection")
+    def test_get_entities_by_ids_with_projection_missing_entities(self, mock_fetch):
+        """Test get_entities_by_ids_with_projection with some missing entities."""
+        # Mock response with only one entity found
+        mock_fetch.return_value = [
+            {"id": "nmdc:bsm-11-abc123", "name": "Sample 1", "ecosystem": "Soil"}
+        ]
+
+        # Test with two IDs but only one found
+        entity_ids = ["nmdc:bsm-11-abc123", "nmdc:bsm-11-missing"]
+        result = get_entities_by_ids_with_projection(
+            entity_ids=entity_ids,
+            collection="biosample_set",
+            projection=["id", "name", "ecosystem"],
+        )
+
+        # Verify the result shows missing entities
+        self.assertEqual(result["requested_count"], 2)
+        self.assertEqual(result["fetched_count"], 1)
+        self.assertEqual(len(result["entities"]), 1)
+        self.assertIn("missing_ids", result)
+        self.assertEqual(result["missing_ids"], ["nmdc:bsm-11-missing"])
+        self.assertIn("1 entities were not found", result["note"])
+
+    def test_get_entities_by_ids_with_projection_empty_list(self):
+        """Test get_entities_by_ids_with_projection with empty entity_ids list."""
+        result = get_entities_by_ids_with_projection(
+            entity_ids=[], collection="biosample_set", projection="id,name"
+        )
+
+        self.assertIn("error", result)
+        self.assertEqual(result["error"], "entity_ids list cannot be empty")
+        self.assertEqual(result["requested_count"], 0)
+        self.assertEqual(result["fetched_count"], 0)
+
+    def test_get_entities_by_ids_with_projection_too_many_ids(self):
+        """Test get_entities_by_ids_with_projection with too many entity IDs."""
+        # Create a list with more than 100 IDs
+        entity_ids = [f"nmdc:bsm-11-{i:06d}" for i in range(101)]
+
+        result = get_entities_by_ids_with_projection(
+            entity_ids=entity_ids, collection="biosample_set"
+        )
+
+        self.assertIn("error", result)
+        self.assertEqual(
+            result["error"],
+            "Too many entity IDs requested. Maximum is 100 per request.",
+        )
+        self.assertEqual(result["requested_count"], 101)
+        self.assertEqual(result["fetched_count"], 0)
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_entities_by_ids_with_projection")
+    def test_get_entities_by_ids_with_projection_api_error(self, mock_fetch):
+        """Test get_entities_by_ids_with_projection handling API errors."""
+        # Mock an API error
+        mock_fetch.side_effect = Exception("API connection failed")
+
+        entity_ids = ["nmdc:bsm-11-abc123"]
+        result = get_entities_by_ids_with_projection(
+            entity_ids=entity_ids, collection="biosample_set"
+        )
+
+        self.assertIn("error", result)
+        self.assertIn("Failed to fetch entities from biosample_set", result["error"])
+        self.assertIn("API connection failed", result["error"])
+        self.assertEqual(result["requested_count"], 1)
+        self.assertEqual(result["fetched_count"], 0)
 
 
 if __name__ == "__main__":
