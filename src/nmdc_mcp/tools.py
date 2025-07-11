@@ -714,6 +714,9 @@ def get_entities_by_ids_with_projection(
             ["env_broad_scale", "env_local_scale", "env_medium"],
         )
     """
+    if entity_ids is None:
+        raise TypeError("entity_ids cannot be None")
+
     try:
         if not entity_ids:
             return {

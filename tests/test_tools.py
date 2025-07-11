@@ -260,7 +260,7 @@ class TestNMDCTools(unittest.TestCase):
         self.assertEqual(result["requested_ids"], entity_ids)
 
     def test_get_entities_by_ids_with_projection_requested_ids_none(self):
-        """Test that get_entities_by_ids_with_projection raises TypeError for None input."""
+        """Test that get_entities_by_ids_with_projection raises TypeError for None."""
         # Test the case where entity_ids is explicitly None
         # Verify that the function raises a TypeError
         from nmdc_mcp.tools import get_entities_by_ids_with_projection
@@ -270,6 +270,7 @@ class TestNMDCTools(unittest.TestCase):
             get_entities_by_ids_with_projection(
                 entity_ids=None, collection="biosample_set"
             )
+
     @patch("nmdc_mcp.tools.fetch_nmdc_entity_by_id_with_projection")
     def test_get_study_doi_details_basic(self, mock_fetch):
         """Test basic get_study_doi_details functionality."""
