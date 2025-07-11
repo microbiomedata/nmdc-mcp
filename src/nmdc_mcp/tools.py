@@ -702,6 +702,7 @@ def get_entities_by_ids_with_projection(
             - missing_ids: List of entity IDs that were not found
               (only present if some IDs are missing)
             - collection: Name of the collection queried
+            - error: Error message (only present if an error occurred)
             - note: Human-readable summary of the operation
 
     Examples:
@@ -740,6 +741,7 @@ def get_entities_by_ids_with_projection(
                 "requested_count": len(entity_ids),
                 "fetched_count": 0,
                 "requested_ids": entity_ids,
+                "collection": collection,
             }
 
         entities = fetch_nmdc_entities_by_ids_with_projection(

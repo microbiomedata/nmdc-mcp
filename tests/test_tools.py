@@ -240,6 +240,7 @@ class TestNMDCTools(unittest.TestCase):
         self.assertEqual(result["requested_count"], 101)
         self.assertEqual(result["fetched_count"], 0)
         self.assertEqual(result["requested_ids"], entity_ids)
+        self.assertEqual(result["collection"], "biosample_set")
 
     @patch("nmdc_mcp.tools.fetch_nmdc_entities_by_ids_with_projection")
     def test_get_entities_by_ids_with_projection_api_error(self, mock_fetch):
