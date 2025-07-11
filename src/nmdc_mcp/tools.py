@@ -16,6 +16,15 @@ from .api import (
     fetch_nmdc_entity_by_id,
     fetch_nmdc_entity_by_id_with_projection,
 )
+from .constants import (
+    DEFAULT_PAGE_SIZE,
+    DEFAULT_RANDOM_SAMPLE_SIZE,
+    LARGE_COLLECTION_THRESHOLD,
+    MAX_ENTITY_IDS_PER_REQUEST,
+    MAX_RANDOM_SAMPLE_SIZE,
+    MIN_RANDOM_FETCH_COUNT,
+    RANDOM_FETCH_MULTIPLIER,
+)
 
 
 def clean_collection_date(record: dict[str, Any]) -> None:
@@ -343,7 +352,7 @@ def get_all_collection_ids(
 
         if max_batches is None:
             # For very large collections, default to returning first batch only
-            if total_count > 10000:
+            if total_count > LARGE_COLLECTION_THRESHOLD:
                 effective_max_batches = 1
                 note_suffix = (
                     " (Limited to first batch due to collection size. "
@@ -456,7 +465,9 @@ def get_random_biosample_subset(
             )
 
         # Fetch more records than needed to allow for random sampling
-        fetch_count = max(sample_count * 10, 100)
+        fetch_count = max(
+            sample_count * RANDOM_FETCH_MULTIPLIER, MIN_RANDOM_FETCH_COUNT
+        )
 
         records = fetch_nmdc_biosample_records_paged(
             filter_criteria=filters,
@@ -502,7 +513,9 @@ def get_random_collection_subset(
             projection = ["id", "name"]
 
         # Fetch more records than needed to allow for random sampling
-        fetch_count = max(sample_count * 10, 100)
+        fetch_count = max(
+            sample_count * RANDOM_FETCH_MULTIPLIER, MIN_RANDOM_FETCH_COUNT
+        )
 
         records = fetch_nmdc_collection_records_paged(
             collection=collection,
@@ -527,7 +540,7 @@ def get_random_collection_subset(
 
 def get_random_collection_ids(
     collection: str = "biosample_set",
-    sample_size: int = 1000,
+    sample_size: int = DEFAULT_RANDOM_SAMPLE_SIZE,
     seed: int | None = None,
 ) -> dict[str, Any]:
     """
@@ -554,9 +567,12 @@ def get_random_collection_ids(
     """
     try:
         # Limit sample size to prevent token overflow
-        effective_sample_size = min(sample_size, 1000)
-        if sample_size > 1000:
-            print(f"Warning: sample_size limited to 1000 (requested: {sample_size})")
+        effective_sample_size = min(sample_size, MAX_RANDOM_SAMPLE_SIZE)
+        if sample_size > MAX_RANDOM_SAMPLE_SIZE:
+            print(
+                f"Warning: sample_size limited to {MAX_RANDOM_SAMPLE_SIZE} "
+                f"(requested: {sample_size})"
+            )
 
         # Set random seed if provided
         if seed is not None:
@@ -657,7 +673,7 @@ def get_entities_by_ids_with_projection(
     entity_ids: list[str],
     collection: str,
     projection: str | list[str] | None = None,
-    max_page_size: int = 100,
+    max_page_size: int = DEFAULT_PAGE_SIZE,
 ) -> dict[str, Any]:
     """
     Retrieve multiple NMDC entities by their IDs with optional field projection.
@@ -698,9 +714,12 @@ def get_entities_by_ids_with_projection(
                 "fetched_count": 0,
             }
 
-        if len(entity_ids) > 100:
+        if len(entity_ids) > MAX_ENTITY_IDS_PER_REQUEST:
             return {
-                "error": "Too many entity IDs requested. Maximum is 100 per request.",
+                "error": (
+                    f"Too many entity IDs requested. Maximum is "
+                    f"{MAX_ENTITY_IDS_PER_REQUEST} per request."
+                ),
                 "entities": [],
                 "requested_count": len(entity_ids),
                 "fetched_count": 0,

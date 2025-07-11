@@ -11,10 +11,12 @@ from typing import Any
 
 import requests
 
+from .constants import DEFAULT_PAGE_SIZE
+
 
 def fetch_nmdc_collection_records_paged(
     collection: str = "biosample_set",
-    max_page_size: int = 100,
+    max_page_size: int = DEFAULT_PAGE_SIZE,
     projection: str | list[str] | None = None,
     page_token: str | None = None,
     filter_criteria: dict[str, Any] | None = None,  # Future filtering support
@@ -262,7 +264,7 @@ def fetch_nmdc_entities_by_ids_with_projection(
     entity_ids: list[str],
     collection: str,
     projection: str | list[str] | None = None,
-    max_page_size: int = 100,
+    max_page_size: int = DEFAULT_PAGE_SIZE,
     base_url: str = "https://api.microbiomedata.org/nmdcschema",
     verbose: bool = False,
 ) -> list[dict[str, Any]]:
@@ -316,7 +318,7 @@ def fetch_nmdc_entities_by_ids_with_projection(
 
 
 def fetch_nmdc_biosample_records_paged(
-    max_page_size: int = 100,
+    max_page_size: int = DEFAULT_PAGE_SIZE,
     projection: str | list[str] | None = None,
     page_token: str | None = None,
     filter_criteria: dict[str, Any] | None = None,
