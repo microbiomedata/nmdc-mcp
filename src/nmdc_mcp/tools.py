@@ -690,8 +690,20 @@ def get_entities_by_ids_with_projection(
             of field names (e.g., ["id", "name", "ecosystem"])
         max_page_size (int): Maximum number of records to retrieve per API call
 
+    Raises:
+        TypeError: If entity_ids is None
+
     Returns:
-        Dict[str, Any]: Contains the fetched entities and metadata
+        Dict[str, Any]: Contains the fetched entities and metadata including:
+            - entities: List of fetched entity documents
+            - requested_count: Number of entity IDs requested
+            - fetched_count: Number of entities successfully fetched
+            - requested_ids: List of entity IDs that were requested
+            - missing_ids: List of entity IDs that were not found
+              (only present if some IDs are missing)
+            - collection: Name of the collection queried
+            - error: Error message (only present if an error occurred)
+            - note: Human-readable summary of the operation
 
     Examples:
         - get_entities_by_ids_with_projection(
@@ -705,6 +717,9 @@ def get_entities_by_ids_with_projection(
             ["env_broad_scale", "env_local_scale", "env_medium"],
         )
     """
+    if entity_ids is None:
+        raise TypeError("entity_ids cannot be None")
+
     try:
         if not entity_ids:
             return {
@@ -712,6 +727,8 @@ def get_entities_by_ids_with_projection(
                 "entities": [],
                 "requested_count": 0,
                 "fetched_count": 0,
+                "requested_ids": [],
+                "collection": collection,
             }
 
         if len(entity_ids) > MAX_ENTITY_IDS_PER_REQUEST:
@@ -723,6 +740,8 @@ def get_entities_by_ids_with_projection(
                 "entities": [],
                 "requested_count": len(entity_ids),
                 "fetched_count": 0,
+                "requested_ids": entity_ids,
+                "collection": collection,
             }
 
         entities = fetch_nmdc_entities_by_ids_with_projection(
@@ -774,6 +793,7 @@ def get_entities_by_ids_with_projection(
             "requested_count": len(entity_ids) if entity_ids else 0,
             "fetched_count": 0,
             "collection": collection,
+            "requested_ids": entity_ids if entity_ids else [],
         }
 
 

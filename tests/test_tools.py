@@ -183,6 +183,7 @@ class TestNMDCTools(unittest.TestCase):
         self.assertEqual(len(result["entities"]), 2)
         self.assertEqual(result["entities"][0]["id"], "nmdc:bsm-11-abc123")
         self.assertEqual(result["entities"][1]["id"], "nmdc:bsm-11-def456")
+        self.assertEqual(result["requested_ids"], entity_ids)
         self.assertNotIn("missing_ids", result)
 
     @patch("nmdc_mcp.tools.fetch_nmdc_entities_by_ids_with_projection")
@@ -207,6 +208,7 @@ class TestNMDCTools(unittest.TestCase):
         self.assertEqual(len(result["entities"]), 1)
         self.assertIn("missing_ids", result)
         self.assertEqual(result["missing_ids"], ["nmdc:bsm-11-missing"])
+        self.assertEqual(result["requested_ids"], entity_ids)
         self.assertIn("1 entities were not found", result["note"])
 
     def test_get_entities_by_ids_with_projection_empty_list(self):
@@ -219,6 +221,7 @@ class TestNMDCTools(unittest.TestCase):
         self.assertEqual(result["error"], "entity_ids list cannot be empty")
         self.assertEqual(result["requested_count"], 0)
         self.assertEqual(result["fetched_count"], 0)
+        self.assertEqual(result["requested_ids"], [])
 
     def test_get_entities_by_ids_with_projection_too_many_ids(self):
         """Test get_entities_by_ids_with_projection with too many entity IDs."""
@@ -236,6 +239,8 @@ class TestNMDCTools(unittest.TestCase):
         )
         self.assertEqual(result["requested_count"], 101)
         self.assertEqual(result["fetched_count"], 0)
+        self.assertEqual(result["requested_ids"], entity_ids)
+        self.assertEqual(result["collection"], "biosample_set")
 
     @patch("nmdc_mcp.tools.fetch_nmdc_entities_by_ids_with_projection")
     def test_get_entities_by_ids_with_projection_api_error(self, mock_fetch):
@@ -253,6 +258,19 @@ class TestNMDCTools(unittest.TestCase):
         self.assertIn("API connection failed", result["error"])
         self.assertEqual(result["requested_count"], 1)
         self.assertEqual(result["fetched_count"], 0)
+        self.assertEqual(result["requested_ids"], entity_ids)
+
+    def test_get_entities_by_ids_with_projection_requested_ids_none(self):
+        """Test that get_entities_by_ids_with_projection raises TypeError for None."""
+        # Test the case where entity_ids is explicitly None
+        # Verify that the function raises a TypeError
+        from nmdc_mcp.tools import get_entities_by_ids_with_projection
+
+        # Simulate the error path where entity_ids could be None
+        with self.assertRaises(TypeError):
+            get_entities_by_ids_with_projection(
+                entity_ids=None, collection="biosample_set"
+            )
 
     @patch("nmdc_mcp.tools.fetch_nmdc_entity_by_id_with_projection")
     def test_get_study_doi_details_basic(self, mock_fetch):
