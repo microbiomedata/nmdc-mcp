@@ -175,25 +175,26 @@ def fetch_nmdc_collection_stats(
         requests.HTTPError: If the API request fails
     """
     endpoint_url = f"{base_url}/collection_stats"
-    
+
     if verbose:
         print(f"Fetching collection stats from: {endpoint_url}")
-    
+
     response = requests.get(endpoint_url)
     response.raise_for_status()
-    
+
     raw_stats = response.json()
-    
+
     # Transform the response format from list to dictionary keyed by collection name
     stats_data = {}
-    
+
     for collection_stat in raw_stats:
-        # Extract collection name from namespace (e.g., "nmdc.biosample_set" -> "biosample_set")
+        # Extract collection name from namespace
+        # (e.g., "nmdc.biosample_set" -> "biosample_set")
         ns = collection_stat.get("ns", "")
         if ns.startswith("nmdc."):
             collection_name = ns[5:]  # Remove "nmdc." prefix
             storage_stats = collection_stat.get("storageStats", {})
-            
+
             stats_data[collection_name] = {
                 "count": storage_stats.get("count", 0),
                 "size_bytes": storage_stats.get("size", 0),
@@ -201,15 +202,15 @@ def fetch_nmdc_collection_stats(
                 "storage_size": storage_stats.get("storageSize", 0),
                 "total_size": storage_stats.get("totalSize", 0),
             }
-            
+
             if verbose:
                 count = storage_stats.get("count", 0)
                 print(f"  {collection_name}: {count:,} documents")
-    
+
     if verbose:
         total_collections = len(stats_data)
         print(f"Retrieved stats for {total_collections} collections")
-    
+
     return stats_data
 
 
@@ -222,10 +223,10 @@ def fetch_nmdc_entity_by_id_with_projection(
 ) -> dict[str, Any] | None:
     """
     Fetch a specific NMDC entity by ID with optional field projection.
-    
+
     This function uses the collection-specific endpoint with filtering to fetch
     a single document, allowing for field projection unlike the generic /ids/ endpoint.
-    
+
     Args:
         entity_id: NMDC ID (e.g., "nmdc:bsm-11-abc123")
         collection: NMDC collection name (e.g., "biosample_set", "study_set")
@@ -233,15 +234,16 @@ def fetch_nmdc_entity_by_id_with_projection(
             or a list of field names.
         base_url: Base URL for NMDC schema API
         verbose: Enable verbose logging
-    
+
     Returns:
-        Dictionary containing the entity data with projected fields, or None if not found
-    
+        Dictionary containing the entity data with projected fields,
+        or None if not found
+
     Raises:
         requests.HTTPError: If the API request fails
     """
     filter_criteria = {"id": entity_id}
-    
+
     records = fetch_nmdc_collection_records_paged(
         collection=collection,
         max_page_size=1,
@@ -250,7 +252,7 @@ def fetch_nmdc_entity_by_id_with_projection(
         max_records=1,
         verbose=verbose,
     )
-    
+
     if records:
         return records[0]
     return None

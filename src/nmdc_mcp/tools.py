@@ -3,14 +3,14 @@
 # This module contains tools that consume the generic API wrapper functions in
 # nmdc_mcp/api.py and constrain/transform them based on use cases/applications
 ################################################################################
+import random
 from datetime import datetime
 from typing import Any
-import random
 
 from .api import (
     fetch_nmdc_biosample_records_paged,
-    fetch_nmdc_collection_records_paged,
     fetch_nmdc_collection_names,
+    fetch_nmdc_collection_records_paged,
     fetch_nmdc_collection_stats,
     fetch_nmdc_entity_by_id,
     fetch_nmdc_entity_by_id_with_projection,
@@ -182,23 +182,29 @@ def get_entity_by_id_with_projection(
 ) -> dict[str, Any]:
     """
     Retrieve a specific NMDC entity by ID with optional field projection.
-    
+
     This function allows you to fetch only specific fields from a document,
     which is useful for reducing response size and focusing on relevant data.
-    
+
     Args:
         entity_id (str): NMDC entity ID (e.g., "nmdc:bsm-11-abc123")
         collection (str): NMDC collection name (e.g., "biosample_set", "study_set")
         projection (str | list[str], optional): Fields to include in the response.
             Can be a comma-separated string (e.g., "id,name,ecosystem") or a list
             of field names (e.g., ["id", "name", "ecosystem"])
-    
+
     Returns:
         Dict[str, Any]: Entity data with only the projected fields, or error information
-    
+
     Examples:
-        - get_entity_by_id_with_projection("nmdc:bsm-11-abc123", "biosample_set", "id,name,ecosystem")
-        - get_entity_by_id_with_projection("nmdc:bsm-11-abc123", "biosample_set", ["env_broad_scale", "env_local_scale", "env_medium"])
+        - get_entity_by_id_with_projection(
+            "nmdc:bsm-11-abc123", "biosample_set", "id,name,ecosystem"
+        )
+        - get_entity_by_id_with_projection(
+            "nmdc:bsm-11-abc123",
+            "biosample_set",
+            ["env_broad_scale", "env_local_scale", "env_medium"],
+        )
     """
     try:
         entity_data = fetch_nmdc_entity_by_id_with_projection(
@@ -207,25 +213,24 @@ def get_entity_by_id_with_projection(
             projection=projection,
             verbose=True,
         )
-        
+
         if entity_data is None:
             return {
                 "error": f"Entity '{entity_id}' not found in collection '{collection}'",
                 "entity_id": entity_id,
                 "collection": collection,
             }
-        
+
         return entity_data
     except Exception as e:
         return {
-            "error": f"Failed to retrieve entity '{entity_id}' from '{collection}': {str(e)}",
+            "error": (
+                f"Failed to retrieve entity '{entity_id}' "
+                f"from '{collection}': {str(e)}"
+            ),
             "entity_id": entity_id,
             "collection": collection,
         }
-
-
-
-
 
 
 def get_collection_names() -> list[str]:
@@ -239,7 +244,8 @@ def get_collection_names() -> list[str]:
     - Validating collection names before making other API calls
 
     Returns:
-        List[str]: List of available collection names (e.g., ["biosample_set", "study_set", ...])
+        List[str]: List of available collection names
+            (e.g., ["biosample_set", "study_set", ...])
 
     Examples:
         - get_collection_names() # Get all available collection names
@@ -314,27 +320,34 @@ def get_all_collection_ids(
         # First get collection stats to understand the size
         stats = get_collection_stats()
         if collection not in stats:
-            return {"error": f"Collection '{collection}' not found in available collections"}
-        
+            return {
+                "error": f"Collection '{collection}' not found in available collections"
+            }
+
         total_count = stats[collection].get("count", 0)
-        
+
         if total_count == 0:
             return {
                 "collection": collection,
                 "total_count": 0,
                 "batches": [],
-                "note": f"Collection '{collection}' is empty."
+                "note": f"Collection '{collection}' is empty.",
             }
 
         # Calculate effective limits
         effective_batch_size = min(batch_size, total_count)
-        max_possible_batches = (total_count + effective_batch_size - 1) // effective_batch_size
-        
+        max_possible_batches = (
+            total_count + effective_batch_size - 1
+        ) // effective_batch_size
+
         if max_batches is None:
             # For very large collections, default to returning first batch only
             if total_count > 10000:
                 effective_max_batches = 1
-                note_suffix = f" (Limited to first batch due to collection size. Use max_batches to get more.)"
+                note_suffix = (
+                    " (Limited to first batch due to collection size. "
+                    "Use max_batches to get more.)"
+                )
             else:
                 effective_max_batches = max_possible_batches
                 note_suffix = ""
@@ -342,22 +355,27 @@ def get_all_collection_ids(
             effective_max_batches = min(max_batches, max_possible_batches)
             note_suffix = ""
 
-        print(f"Fetching up to {effective_max_batches} batch(es) of {effective_batch_size} IDs from {collection}...")
+        print(
+            f"Fetching up to {effective_max_batches} batch(es) of "
+            f"{effective_batch_size} IDs from {collection}..."
+        )
 
         # Fetch records in batches
         batches = []
         records_fetched = 0
-        
+
         for batch_num in range(effective_max_batches):
             # Calculate how many records to fetch for this batch
-            remaining_in_batch = min(effective_batch_size, total_count - records_fetched)
-            
+            remaining_in_batch = min(
+                effective_batch_size, total_count - records_fetched
+            )
+
             if remaining_in_batch <= 0:
                 break
-            
+
             # For batching, we need to skip records from previous batches
             skip_records = batch_num * effective_batch_size
-                
+
             batch_records = fetch_nmdc_collection_records_paged(
                 collection=collection,
                 projection=["id"],
@@ -365,20 +383,24 @@ def get_all_collection_ids(
                 max_records=skip_records + remaining_in_batch,  # Fetch up to this point
                 verbose=False,
             )
-            
+
             # Extract IDs from this batch (skip the ones we've already processed)
-            all_batch_ids = [record.get("id") for record in batch_records if record.get("id")]
-            batch_ids = all_batch_ids[skip_records:skip_records + remaining_in_batch]
-            
+            all_batch_ids = [
+                record.get("id") for record in batch_records if record.get("id")
+            ]
+            batch_ids = all_batch_ids[skip_records : skip_records + remaining_in_batch]
+
             if batch_ids:
-                batches.append({
-                    "batch_number": batch_num + 1,
-                    "ids_count": len(batch_ids),
-                    "ids": batch_ids
-                })
+                batches.append(
+                    {
+                        "batch_number": batch_num + 1,
+                        "ids_count": len(batch_ids),
+                        "ids": batch_ids,
+                    }
+                )
                 records_fetched += len(batch_ids)
                 print(f"  Batch {batch_num + 1}: {len(batch_ids)} IDs")
-            
+
             # If we got fewer records than expected, we've reached the end
             if len(all_batch_ids) < skip_records + remaining_in_batch:
                 break
@@ -390,37 +412,143 @@ def get_all_collection_ids(
             "batch_size": effective_batch_size,
             "batches_returned": len(batches),
             "batches": batches,
-            "note": f"Successfully fetched {records_fetched:,} IDs from {collection} in {len(batches)} batch(es).{note_suffix} "
-                    f"Use these IDs with get_entity_by_id() for random document selection.",
+            "note": (
+                f"Successfully fetched {records_fetched:,} IDs from {collection} "
+                f"in {len(batches)} batch(es).{note_suffix} "
+                f"Use these IDs with get_entity_by_id() for random document selection."
+            ),
         }
 
     except Exception as e:
         return {"error": f"Failed to fetch IDs from {collection}: {str(e)}"}
 
 
+def get_random_biosample_subset(
+    sample_count: int = 10,
+    require_coordinates: bool = True,
+    projection: list[str] | None = None,
+    filter_criteria: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Get a random subset of biosample records with optional filtering.
+
+    Args:
+        sample_count (int): Number of random samples to return
+        require_coordinates (bool): Whether to require lat/lon coordinates
+        projection (list[str], optional): Fields to include in response
+        filter_criteria (dict, optional): Additional filter criteria
+
+    Returns:
+        List[Dict[str, Any]]: Random biosample records
+    """
+    try:
+        # Build filter criteria
+        filters = filter_criteria.copy() if filter_criteria else {}
+
+        # Add coordinate requirements if needed
+        if require_coordinates:
+            filters.update(
+                {
+                    "lat_lon.latitude": {"$exists": True, "$ne": None},
+                    "lat_lon.longitude": {"$exists": True, "$ne": None},
+                }
+            )
+
+        # Fetch more records than needed to allow for random sampling
+        fetch_count = max(sample_count * 10, 100)
+
+        records = fetch_nmdc_biosample_records_paged(
+            filter_criteria=filters,
+            projection=projection,
+            max_records=fetch_count,
+            verbose=False,
+        )
+
+        if not records:
+            return [{"error": "No biosamples found matching the criteria"}]
+
+        # Random sample from the fetched records
+        if len(records) <= sample_count:
+            return records
+
+        return random.sample(records, sample_count)
+
+    except Exception as e:
+        return [{"error": f"Failed to fetch random samples: {str(e)}"}]
+
+
+def get_random_collection_subset(
+    collection: str = "biosample_set",
+    sample_count: int = 10,
+    projection: list[str] | None = None,
+    filter_criteria: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Get a random subset of records from any NMDC collection.
+
+    Args:
+        collection (str): NMDC collection name
+        sample_count (int): Number of random samples to return
+        projection (list[str], optional): Fields to include in response
+        filter_criteria (dict, optional): Additional filter criteria
+
+    Returns:
+        List[Dict[str, Any]]: Random records from the collection
+    """
+    try:
+        # Default projection for different collections
+        if projection is None:
+            projection = ["id", "name"]
+
+        # Fetch more records than needed to allow for random sampling
+        fetch_count = max(sample_count * 10, 100)
+
+        records = fetch_nmdc_collection_records_paged(
+            collection=collection,
+            filter_criteria=filter_criteria,
+            projection=projection,
+            max_records=fetch_count,
+            verbose=False,
+        )
+
+        if not records:
+            return [{"error": f"No records found in {collection}"}]
+
+        # Random sample from the fetched records
+        if len(records) <= sample_count:
+            return records
+
+        return random.sample(records, sample_count)
+
+    except Exception as e:
+        return [{"error": f"Failed to fetch samples from {collection}: {str(e)}"}]
+
+
 def get_random_collection_ids(
-    collection: str = "biosample_set", 
+    collection: str = "biosample_set",
     sample_size: int = 1000,
     seed: int | None = None,
 ) -> dict[str, Any]:
     """
     Get a random sample of document IDs from a specified NMDC collection.
-    
+
     This function fetches the entire universe of IDs from a collection and then
     randomly samples from them to provide a representative subset. This is ideal
     for random sampling while staying within reasonable token limits.
-    
+
     Args:
         collection (str): NMDC collection name (e.g., "biosample_set", "study_set")
         sample_size (int): Number of random IDs to return (max 1000, default 1000)
         seed (int, optional): Random seed for reproducible sampling
-        
+
     Returns:
         Dict[str, Any]: Contains randomly sampled IDs and metadata
-        
+
     Examples:
         - get_random_collection_ids("biosample_set")  # Get 1000 random biosample IDs
-        - get_random_collection_ids("study_set", sample_size=50)  # Get 50 random study IDs
+        - get_random_collection_ids(
+            "study_set", sample_size=50
+        )  # Get 50 random study IDs
         - get_random_collection_ids("biosample_set", seed=42)  # Reproducible sampling
     """
     try:
@@ -428,27 +556,29 @@ def get_random_collection_ids(
         effective_sample_size = min(sample_size, 1000)
         if sample_size > 1000:
             print(f"Warning: sample_size limited to 1000 (requested: {sample_size})")
-        
+
         # Set random seed if provided
         if seed is not None:
             random.seed(seed)
-        
+
         # Get collection stats to understand the size
         stats = get_collection_stats()
         if collection not in stats:
-            return {"error": f"Collection '{collection}' not found in available collections"}
-        
+            return {
+                "error": f"Collection '{collection}' not found in available collections"
+            }
+
         total_count = stats[collection].get("count", 0)
-        
+
         if total_count == 0:
             return {
                 "collection": collection,
                 "total_count": 0,
                 "sample_size": 0,
                 "sampled_ids": [],
-                "note": f"Collection '{collection}' is empty."
+                "note": f"Collection '{collection}' is empty.",
             }
-        
+
         # If collection is smaller than requested sample, just return all IDs
         if total_count <= effective_sample_size:
             print(f"Collection has {total_count} documents, returning all IDs")
@@ -465,11 +595,16 @@ def get_random_collection_ids(
                 "total_count": total_count,
                 "sample_size": len(all_ids),
                 "sampled_ids": all_ids,
-                "note": f"Returned all {len(all_ids)} IDs from {collection} (collection smaller than requested sample)."
+                "note": (
+                    f"Returned all {len(all_ids)} IDs from {collection} "
+                    f"(collection smaller than requested sample)."
+                ),
             }
-        
-        print(f"Fetching all {total_count:,} IDs from {collection} for random sampling...")
-        
+
+        print(
+            f"Fetching all {total_count:,} IDs from {collection} for random sampling..."
+        )
+
         # Fetch all IDs from the collection
         all_records = fetch_nmdc_collection_records_paged(
             collection=collection,
@@ -478,25 +613,27 @@ def get_random_collection_ids(
             max_records=total_count,
             verbose=False,
         )
-        
+
         # Extract all IDs
         all_ids = [record.get("id") for record in all_records if record.get("id")]
         actual_count = len(all_ids)
-        
+
         if actual_count == 0:
             return {
                 "collection": collection,
                 "total_count": total_count,
                 "sample_size": 0,
                 "sampled_ids": [],
-                "note": f"No valid IDs found in {collection}."
+                "note": f"No valid IDs found in {collection}.",
             }
-        
+
         # Randomly sample from all IDs
         sampled_ids = random.sample(all_ids, min(effective_sample_size, actual_count))
-        
-        print(f"Randomly sampled {len(sampled_ids)} IDs from {actual_count:,} total IDs")
-        
+
+        print(
+            f"Randomly sampled {len(sampled_ids)} IDs from {actual_count:,} total IDs"
+        )
+
         return {
             "collection": collection,
             "total_count": actual_count,
@@ -504,9 +641,12 @@ def get_random_collection_ids(
             "sampled_ids": sampled_ids,
             "sampling_method": "random",
             "seed": seed,
-            "note": f"Randomly sampled {len(sampled_ids):,} IDs from {actual_count:,} total IDs in {collection}. "
-                    f"Use these IDs with get_entity_by_id() to retrieve random documents."
+            "note": (
+                f"Randomly sampled {len(sampled_ids):,} IDs from "
+                f"{actual_count:,} total IDs in {collection}. "
+                f"Use these IDs with get_entity_by_id() to retrieve random documents."
+            ),
         }
-        
+
     except Exception as e:
         return {"error": f"Failed to fetch random IDs from {collection}: {str(e)}"}
