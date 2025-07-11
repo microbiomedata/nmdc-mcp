@@ -774,6 +774,7 @@ def get_entities_by_ids_with_projection(
             "requested_count": len(entity_ids) if entity_ids else 0,
             "fetched_count": 0,
             "collection": collection,
+            "requested_ids": entity_ids if entity_ids else [],
         }
 
 
