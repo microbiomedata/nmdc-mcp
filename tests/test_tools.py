@@ -710,7 +710,7 @@ class TestNMDCTools(unittest.TestCase):
         self.assertEqual(result["max_records"], 50)
         self.assertEqual(result["potentially_truncated"], False)
         self.assertIn("error", result)
-        self.assertIn("Failed to get biosamples for study", result["error"])
+        self.assertIn("Failed to get biosample IDs for study", result["error"])
         self.assertIn("Database connection error", result["error"])
 
     @patch("nmdc_mcp.tools.fetch_nmdc_biosample_records_paged")
