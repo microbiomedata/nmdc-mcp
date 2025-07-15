@@ -1,7 +1,7 @@
-.PHONY: test-coverage clean install dev format lint all server build upload-test upload release deptry mypy test-mcp test-mcp-extended test-integration test-unit test-real-api
+.PHONY: test-coverage clean install dev format lint all server build upload-test upload release deptry mypy test-mcp test-mcp-extended test-integration test-unit test-real-api test-version
 
 # Default target
-all: clean install dev test-coverage format lint mypy deptry build test-mcp test-mcp-extended test-integration
+all: clean install dev test-coverage format lint mypy deptry build test-mcp test-mcp-extended test-integration test-version
 
 # Install everything for development
 dev:
@@ -93,6 +93,11 @@ test-mcp-extended:
 	 sleep 0.1; \
 	 echo '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "get_samples_by_ecosystem", "arguments": {"ecosystem_type": "Soil", "max_records": 3}}, "id": 2}') | \
 	uv run python src/nmdc_mcp/main.py
+
+# Test version flag
+test-version:
+	@echo "🔢 Testing version flag..."
+	uv run nmdc-mcp --version
 
 # NMDC MCP - Claude Desktop config:
 #   Add to ~/Library/Application Support/Claude/claude_desktop_config.json:

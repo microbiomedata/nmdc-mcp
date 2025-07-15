@@ -69,7 +69,7 @@ dev = [
 "Changelog" = "https://github.com/microbiomedata/nmdc-mcp/releases"
 
 [project.scripts]
-nmdc-mcp = "nmdc_mcp.main:main"
+nmdc-mcp = "nmdc_mcp.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nmdc_mcp"]
