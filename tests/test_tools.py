@@ -638,23 +638,22 @@ class TestNMDCTools(unittest.TestCase):
         self.assertIn("error", result)
         self.assertIn("Failed to retrieve study", result["error"])
 
-    @patch("nmdc_mcp.tools.clean_collection_date")
     @patch("nmdc_mcp.tools.fetch_nmdc_biosample_records_paged")
     @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
     def test_get_biosamples_for_study_success(
-        self, mock_get_with_projection, mock_fetch_biosamples, mock_clean_date
+        self, mock_get_with_projection, mock_fetch_biosamples
     ):
-        """Test successful retrieval of biosamples for a study."""
+        """Test successful retrieval of biosample IDs for a study."""
         # Mock study data
         mock_get_with_projection.return_value = {
             "id": "nmdc:sty-11-xyz789",
             "name": "Test Study",
         }
 
-        # Mock biosample data
+        # Mock biosample data (only IDs since that's all we return now)
         mock_biosamples = [
-            {"id": "nmdc:bsm-11-abc123", "name": "Biosample 1"},
-            {"id": "nmdc:bsm-11-def456", "name": "Biosample 2"},
+            {"id": "nmdc:bsm-11-abc123"},
+            {"id": "nmdc:bsm-11-def456"},
         ]
         mock_fetch_biosamples.return_value = mock_biosamples
 
@@ -667,14 +666,15 @@ class TestNMDCTools(unittest.TestCase):
             projection=["id", "name"],
         )
         mock_fetch_biosamples.assert_called_once()
-        self.assertEqual(mock_clean_date.call_count, 2)
 
         # Verify result structure
         self.assertEqual(result["study_id"], "nmdc:sty-11-xyz789")
         self.assertEqual(result["study_name"], "Test Study")
         self.assertEqual(result["biosamples"], mock_biosamples)
         self.assertEqual(result["biosample_count"], 2)
-        self.assertIn("Found 2 biosamples", result["note"])
+        self.assertEqual(result["max_records"], 50)
+        self.assertEqual(result["potentially_truncated"], False)
+        self.assertIn("Found 2 biosample IDs", result["note"])
 
     @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
     def test_get_biosamples_for_study_study_not_found(self, mock_get_with_projection):
@@ -704,6 +704,32 @@ class TestNMDCTools(unittest.TestCase):
         self.assertIn("error", result)
         self.assertIn("Failed to get biosamples for study", result["error"])
         self.assertIn("Database connection error", result["error"])
+
+    @patch("nmdc_mcp.tools.fetch_nmdc_biosample_records_paged")
+    @patch("nmdc_mcp.tools.get_entity_by_id_with_projection")
+    def test_get_biosamples_for_study_truncation_warning(
+        self, mock_get_with_projection, mock_fetch_biosamples
+    ):
+        """Test truncation warning when max_records limit is reached."""
+        # Mock study data
+        mock_get_with_projection.return_value = {
+            "id": "nmdc:sty-11-xyz789",
+            "name": "Test Study",
+        }
+
+        # Mock biosample data that equals max_records (indicating potential truncation)
+        mock_biosamples = [{"id": f"nmdc:bsm-11-{i:03d}"} for i in range(10)]
+        mock_fetch_biosamples.return_value = mock_biosamples
+
+        result = get_biosamples_for_study("nmdc:sty-11-xyz789", max_records=10)
+
+        # Verify result structure includes truncation warning
+        self.assertEqual(result["study_id"], "nmdc:sty-11-xyz789")
+        self.assertEqual(result["biosample_count"], 10)
+        self.assertEqual(result["max_records"], 10)
+        self.assertEqual(result["potentially_truncated"], True)
+        self.assertIn("limited to max_records=10", result["note"])
+        self.assertIn("there may be more results", result["note"])
 
 
 if __name__ == "__main__":
