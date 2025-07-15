@@ -670,7 +670,7 @@ class TestNMDCTools(unittest.TestCase):
         # Verify result structure
         self.assertEqual(result["study_id"], "nmdc:sty-11-xyz789")
         self.assertEqual(result["study_name"], "Test Study")
-        self.assertEqual(result["biosamples"], mock_biosamples)
+        self.assertEqual(result["biosample_ids"], mock_biosamples)
         self.assertEqual(result["biosample_count"], 2)
         self.assertEqual(result["max_records"], 50)
         self.assertEqual(result["potentially_truncated"], False)
@@ -686,7 +686,11 @@ class TestNMDCTools(unittest.TestCase):
 
         # Verify error handling
         self.assertEqual(result["study_id"], "nmdc:sty-11-missing")
-        self.assertEqual(result["biosamples"], [])
+        self.assertEqual(result["study_name"], "")
+        self.assertEqual(result["biosample_ids"], [])
+        self.assertEqual(result["biosample_count"], 0)
+        self.assertEqual(result["max_records"], 50)
+        self.assertEqual(result["potentially_truncated"], False)
         self.assertIn("error", result)
         self.assertIn("Study nmdc:sty-11-missing not found", result["error"])
 
@@ -700,7 +704,11 @@ class TestNMDCTools(unittest.TestCase):
 
         # Verify exception handling
         self.assertEqual(result["study_id"], "nmdc:sty-11-xyz789")
-        self.assertEqual(result["biosamples"], [])
+        self.assertEqual(result["study_name"], "")
+        self.assertEqual(result["biosample_ids"], [])
+        self.assertEqual(result["biosample_count"], 0)
+        self.assertEqual(result["max_records"], 50)
+        self.assertEqual(result["potentially_truncated"], False)
         self.assertIn("error", result)
         self.assertIn("Failed to get biosamples for study", result["error"])
         self.assertIn("Database connection error", result["error"])
@@ -725,6 +733,7 @@ class TestNMDCTools(unittest.TestCase):
 
         # Verify result structure includes truncation warning
         self.assertEqual(result["study_id"], "nmdc:sty-11-xyz789")
+        self.assertEqual(result["study_name"], "Test Study")
         self.assertEqual(result["biosample_count"], 10)
         self.assertEqual(result["max_records"], 10)
         self.assertEqual(result["potentially_truncated"], True)

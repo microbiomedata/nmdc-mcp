@@ -3,6 +3,7 @@
 # This module contains tools that consume the generic API wrapper functions in
 # nmdc_mcp/api.py and constrain/transform them based on use cases/applications
 ################################################################################
+import logging
 import random
 from datetime import datetime
 from typing import Any
@@ -773,10 +774,29 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
 
     Returns:
         Dict[str, Any]: Dictionary containing the biosample IDs and metadata
+            - study_id (str): The requested study ID
+            - study_name (str): Name of the study (empty if not found)
+            - biosample_ids (list): List of biosample ID dictionaries
+            - biosample_count (int): Number of biosample IDs returned
+            - max_records (int): The limit that was applied
+            - potentially_truncated (bool): True if results may be incomplete
+            - note (str): Human-readable summary
+            - error (str): Error message (only present if error occurred)
 
     Examples:
         - get_biosamples_for_study("nmdc:sty-11-xyz789")
         - get_biosamples_for_study("nmdc:sty-11-xyz789", max_records=100)
+        
+        Example return:
+        {
+            "study_id": "nmdc:sty-11-xyz789",
+            "study_name": "Example Study",
+            "biosample_ids": [{"id": "nmdc:bsm-11-abc123"}, {"id": "nmdc:bsm-11-def456"}],
+            "biosample_count": 2,
+            "max_records": 50,
+            "potentially_truncated": False,
+            "note": "Found 2 biosample IDs associated with study nmdc:sty-11-xyz789"
+        }
     """
     try:
         # First verify the study exists
@@ -787,11 +807,16 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
         if "error" in study_data:
             return {
                 "study_id": study_id,
-                "biosamples": [],
+                "study_name": "",
+                "biosample_ids": [],
+                "biosample_count": 0,
+                "max_records": max_records,
+                "potentially_truncated": False,
                 "error": (
                     f"Study {study_id} not found: "
                     f"{study_data.get('error', 'Unknown error')}"
                 ),
+                "note": f"Failed to retrieve study {study_id}",
             }
 
         # Search for biosamples that have this study in their associated_studies field
@@ -808,25 +833,35 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
 
         # Check if results may have been truncated
         note = f"Found {len(biosamples)} biosample IDs associated with study {study_id}"
-        if len(biosamples) == max_records:
+        potentially_truncated = len(biosamples) == max_records
+        if potentially_truncated:
             note += f" (limited to max_records={max_records}; there may be more results)"
+            logging.warning(
+                f"Potential truncation in get_biosamples_for_study: "
+                f"returned {len(biosamples)} IDs for study {study_id}, "
+                f"may be more results beyond max_records={max_records}"
+            )
 
         return {
             "study_id": study_id,
             "study_name": study_data.get("name", ""),
-            "biosamples": biosamples,
+            "biosample_ids": biosamples,
             "biosample_count": len(biosamples),
             "max_records": max_records,
-            "potentially_truncated": len(biosamples) == max_records,
+            "potentially_truncated": potentially_truncated,
             "note": note,
         }
 
     except Exception as e:
         return {
             "study_id": study_id,
-            "biosamples": [],
+            "study_name": "",
+            "biosample_ids": [],
+            "biosample_count": 0,
+            "max_records": max_records,
+            "potentially_truncated": False,
             "error": f"Failed to get biosamples for study {study_id}: {str(e)}",
-            "note": f"Error occurred while retrieving biosamples for study {study_id}",
+            "note": f"Error occurred while retrieving biosample IDs for study {study_id}",
         }
 
 
