@@ -786,12 +786,15 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
     Examples:
         - get_biosamples_for_study("nmdc:sty-11-xyz789")
         - get_biosamples_for_study("nmdc:sty-11-xyz789", max_records=100)
-        
+
         Example return:
         {
             "study_id": "nmdc:sty-11-xyz789",
             "study_name": "Example Study",
-            "biosample_ids": [{"id": "nmdc:bsm-11-abc123"}, {"id": "nmdc:bsm-11-def456"}],
+            "biosample_ids": [
+                {"id": "nmdc:bsm-11-abc123"},
+                {"id": "nmdc:bsm-11-def456"}
+            ],
             "biosample_count": 2,
             "max_records": 50,
             "potentially_truncated": False,
@@ -835,7 +838,9 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
         note = f"Found {len(biosamples)} biosample IDs associated with study {study_id}"
         potentially_truncated = len(biosamples) == max_records
         if potentially_truncated:
-            note += f" (limited to max_records={max_records}; there may be more results)"
+            note += (
+                f" (limited to max_records={max_records}; there may be more results)"
+            )
             logging.warning(
                 f"Potential truncation in get_biosamples_for_study: "
                 f"returned {len(biosamples)} IDs for study {study_id}, "
@@ -861,7 +866,10 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
             "max_records": max_records,
             "potentially_truncated": False,
             "error": f"Failed to get biosamples for study {study_id}: {str(e)}",
-            "note": f"Error occurred while retrieving biosample IDs for study {study_id}",
+            "note": (
+                f"Error occurred while retrieving biosample IDs "
+                f"for study {study_id}"
+            ),
         }
 
 
