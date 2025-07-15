@@ -3,6 +3,7 @@
 # This module contains tools that consume the generic API wrapper functions in
 # nmdc_mcp/api.py and constrain/transform them based on use cases/applications
 ################################################################################
+import logging
 import random
 from datetime import datetime
 from typing import Any
@@ -765,18 +766,40 @@ def get_study_for_biosample(biosample_id: str) -> dict[str, Any]:
 
 def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, Any]:
     """
-    Get biosamples associated with a specific study.
+    Get biosample IDs associated with a specific study.
 
     Args:
         study_id (str): NMDC study ID (e.g., "nmdc:sty-11-xyz789")
-        max_records (int): Maximum number of biosamples to return
+        max_records (int): Maximum number of biosample IDs to return
 
     Returns:
-        Dict[str, Any]: Dictionary containing the biosamples and metadata
+        Dict[str, Any]: Dictionary containing the biosample IDs and metadata
+            - study_id (str): The requested study ID
+            - study_name (str): Name of the study (empty if not found)
+            - biosample_ids (list): List of biosample ID dictionaries
+            - biosample_count (int): Number of biosample IDs returned
+            - max_records (int): The limit that was applied
+            - potentially_truncated (bool): True if results may be incomplete
+            - note (str): Human-readable summary
+            - error (str): Error message (only present if error occurred)
 
     Examples:
         - get_biosamples_for_study("nmdc:sty-11-xyz789")
         - get_biosamples_for_study("nmdc:sty-11-xyz789", max_records=100)
+
+        Example return:
+        {
+            "study_id": "nmdc:sty-11-xyz789",
+            "study_name": "Example Study",
+            "biosample_ids": [
+                {"id": "nmdc:bsm-11-abc123"},
+                {"id": "nmdc:bsm-11-def456"}
+            ],
+            "biosample_count": 2,
+            "max_records": 50,
+            "potentially_truncated": False,
+            "note": "Found 2 biosample IDs associated with study nmdc:sty-11-xyz789"
+        }
     """
     try:
         # First verify the study exists
@@ -787,55 +810,68 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
         if "error" in study_data:
             return {
                 "study_id": study_id,
-                "biosamples": [],
+                "study_name": "",
+                "biosample_ids": [],
+                "biosample_count": 0,
+                "max_records": max_records,
+                "potentially_truncated": False,
                 "error": (
                     f"Study {study_id} not found: "
                     f"{study_data.get('error', 'Unknown error')}"
                 ),
+                "note": f"Failed to retrieve study {study_id}",
             }
 
         # Search for biosamples that have this study in their associated_studies field
         filter_criteria = {"associated_studies": study_id}
 
-        projection = [
-            "id",
-            "name",
-            "collection_date",
-            "ecosystem",
-            "ecosystem_category",
-            "ecosystem_type",
-            "ecosystem_subtype",
-            "geo_loc_name",
-            "associated_studies",
-        ]
+        projection = ["id"]
 
-        biosamples = fetch_nmdc_biosample_records_paged(
+        biosample_ids = fetch_nmdc_biosample_records_paged(
             filter_criteria=filter_criteria,
             projection=projection,
             max_records=max_records,
             verbose=True,
         )
 
-        # Format the collection_date field to make it more readable
-        for biosample in biosamples:
-            clean_collection_date(biosample)
+        # Check if results may have been truncated
+        note = (
+            f"Found {len(biosample_ids)} biosample IDs associated with study {study_id}"
+        )
+        potentially_truncated = len(biosample_ids) == max_records
+        if potentially_truncated:
+            note += (
+                f" (limited to max_records={max_records}; there may be more results)"
+            )
+            logging.warning(
+                f"Potential truncation in get_biosamples_for_study: "
+                f"returned {len(biosample_ids)} IDs for study {study_id}, "
+                f"may be more results beyond max_records={max_records}"
+            )
 
         return {
             "study_id": study_id,
             "study_name": study_data.get("name", ""),
-            "biosamples": biosamples,
-            "biosample_count": len(biosamples),
-            "note": (
-                f"Found {len(biosamples)} biosamples associated with study {study_id}"
-            ),
+            "biosample_ids": biosample_ids,
+            "biosample_count": len(biosample_ids),
+            "max_records": max_records,
+            "potentially_truncated": potentially_truncated,
+            "note": note,
         }
 
     except Exception as e:
         return {
             "study_id": study_id,
-            "biosamples": [],
-            "error": f"Failed to get biosamples for study {study_id}: {str(e)}",
-            "note": f"Error occurred while retrieving biosamples for study {study_id}",
+            "study_name": "",
+            "biosample_ids": [],
+            "biosample_count": 0,
+            "max_records": max_records,
+            "potentially_truncated": False,
+            "error": f"Failed to get biosample IDs for study {study_id}: {str(e)}",
+            "note": (
+                f"Error occurred while retrieving biosample IDs "
+                f"for study {study_id}"
+            ),
         }
 
 
