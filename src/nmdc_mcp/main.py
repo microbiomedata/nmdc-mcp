@@ -2,6 +2,8 @@
 # nmdc_mcp/main.py
 # This module sets up the FastMCP CLI interface
 ################################################################################
+import sys
+from importlib import metadata
 
 from fastmcp import FastMCP
 
@@ -21,6 +23,11 @@ from nmdc_mcp.tools import (
     get_study_for_biosample,
     search_studies_by_doi_criteria,
 )
+
+try:
+    __version__ = metadata.version("nmdc-mcp")
+except metadata.PackageNotFoundError:
+    __version__ = "unknown"
 
 # Create the FastMCP instance at module level
 mcp: FastMCP = FastMCP("nmdc_mcp")
@@ -44,6 +51,9 @@ mcp.tool(search_studies_by_doi_criteria)
 
 def main() -> None:
     """Main entry point for the application."""
+    if "--version" in sys.argv:
+        print(__version__)
+        sys.exit(0)
     mcp.run()
 
 
