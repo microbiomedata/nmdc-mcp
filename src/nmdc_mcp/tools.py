@@ -827,7 +827,7 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
 
         projection = ["id"]
 
-        biosamples = fetch_nmdc_biosample_records_paged(
+        biosample_ids = fetch_nmdc_biosample_records_paged(
             filter_criteria=filter_criteria,
             projection=projection,
             max_records=max_records,
@@ -835,23 +835,25 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
         )
 
         # Check if results may have been truncated
-        note = f"Found {len(biosamples)} biosample IDs associated with study {study_id}"
-        potentially_truncated = len(biosamples) == max_records
+        note = (
+            f"Found {len(biosample_ids)} biosample IDs associated with study {study_id}"
+        )
+        potentially_truncated = len(biosample_ids) == max_records
         if potentially_truncated:
             note += (
                 f" (limited to max_records={max_records}; there may be more results)"
             )
             logging.warning(
                 f"Potential truncation in get_biosamples_for_study: "
-                f"returned {len(biosamples)} IDs for study {study_id}, "
+                f"returned {len(biosample_ids)} IDs for study {study_id}, "
                 f"may be more results beyond max_records={max_records}"
             )
 
         return {
             "study_id": study_id,
             "study_name": study_data.get("name", ""),
-            "biosample_ids": biosamples,
-            "biosample_count": len(biosamples),
+            "biosample_ids": biosample_ids,
+            "biosample_count": len(biosample_ids),
             "max_records": max_records,
             "potentially_truncated": potentially_truncated,
             "note": note,
