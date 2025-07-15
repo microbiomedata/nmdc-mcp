@@ -867,7 +867,7 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
             "biosample_count": 0,
             "max_records": max_records,
             "potentially_truncated": False,
-            "error": f"Failed to get biosamples for study {study_id}: {str(e)}",
+            "error": f"Failed to get biosample IDs for study {study_id}: {str(e)}",
             "note": (
                 f"Error occurred while retrieving biosample IDs "
                 f"for study {study_id}"
