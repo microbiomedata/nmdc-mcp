@@ -765,14 +765,14 @@ def get_study_for_biosample(biosample_id: str) -> dict[str, Any]:
 
 def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, Any]:
     """
-    Get biosamples associated with a specific study.
+    Get biosample IDs associated with a specific study.
 
     Args:
         study_id (str): NMDC study ID (e.g., "nmdc:sty-11-xyz789")
-        max_records (int): Maximum number of biosamples to return
+        max_records (int): Maximum number of biosample IDs to return
 
     Returns:
-        Dict[str, Any]: Dictionary containing the biosamples and metadata
+        Dict[str, Any]: Dictionary containing the biosample IDs and metadata
 
     Examples:
         - get_biosamples_for_study("nmdc:sty-11-xyz789")
@@ -797,17 +797,7 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
         # Search for biosamples that have this study in their associated_studies field
         filter_criteria = {"associated_studies": study_id}
 
-        projection = [
-            "id",
-            "name",
-            "collection_date",
-            "ecosystem",
-            "ecosystem_category",
-            "ecosystem_type",
-            "ecosystem_subtype",
-            "geo_loc_name",
-            "associated_studies",
-        ]
+        projection = ["id"]
 
         biosamples = fetch_nmdc_biosample_records_paged(
             filter_criteria=filter_criteria,
@@ -816,18 +806,19 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
             verbose=True,
         )
 
-        # Format the collection_date field to make it more readable
-        for biosample in biosamples:
-            clean_collection_date(biosample)
+        # Check if results may have been truncated
+        note = f"Found {len(biosamples)} biosample IDs associated with study {study_id}"
+        if len(biosamples) == max_records:
+            note += f" (limited to max_records={max_records}; there may be more results)"
 
         return {
             "study_id": study_id,
             "study_name": study_data.get("name", ""),
             "biosamples": biosamples,
             "biosample_count": len(biosamples),
-            "note": (
-                f"Found {len(biosamples)} biosamples associated with study {study_id}"
-            ),
+            "max_records": max_records,
+            "potentially_truncated": len(biosamples) == max_records,
+            "note": note,
         }
 
     except Exception as e:
