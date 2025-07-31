@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any
 
 from .api import (
+    fetch_functional_annotation_records,
     fetch_nmdc_biosample_records_paged,
     fetch_nmdc_collection_names,
     fetch_nmdc_collection_records_paged,
@@ -158,6 +159,76 @@ def get_samples_by_ecosystem(
         clean_collection_date(record)
 
     return records
+
+
+def get_samples_by_annotation(
+    gene_function_id: str,
+    max_records: int = 50,
+) -> list[dict[str, Any]]:
+    """
+    Fetch NMDC functional annotation records for a specific gene function ID.
+
+    This function queries the functional_annotation_agg collection to retrieve
+    functional annotation records that match the specified gene function ID.
+
+    Args:
+        gene_function_id (str): The gene function ID to search for 
+            (e.g., "KEGG.ORTHOLOGY:K00001", "COG:COG0001")
+        max_records (int): Maximum number of records to return (default: 50)
+
+    Returns:
+        List[Dict[str, Any]]: List of functional annotation records that match
+            the specified gene function ID.
+
+    Examples:
+        - get_samples_by_annotation("KEGG.ORTHOLOGY:K00001")
+        - get_samples_by_annotation("COG:COG0001", max_records=100)
+    """
+    try:
+        # Validate input
+        if not gene_function_id or not gene_function_id.strip():
+            return [{"error": "gene_function_id parameter is required and cannot be empty"}]
+
+        gene_function_id = gene_function_id.strip()
+
+        # Determine table based on gene function ID prefix
+        if gene_function_id.startswith("KEGG.ORTHOLOGY:"):
+            table = "kegg_function"
+        elif gene_function_id.startswith("COG:"):
+            table = "cog_function"
+        elif gene_function_id.startswith("PFAM:"):
+            table = "pfam_function"
+        elif gene_function_id.startswith("GO:"):
+            table = "go_function"
+        else:
+            return [{"error": f"Unsupported gene function ID prefix. Supported prefixes: KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"}]
+
+        # Build filter criteria with new format
+        filter_criteria = {
+            "conditions": [
+                {
+                    "op": "==",
+                    "field": "id",
+                    "value": gene_function_id,
+                    "table": table
+                }
+            ]
+        }
+
+        # Fetch records from functional_annotation_agg collection
+        records = fetch_functional_annotation_records(
+            filter_criteria=filter_criteria,
+            max_records=max_records,
+            verbose=True,
+        )
+
+        if not records:
+            return [{"message": f"No functional annotation records found for gene_function_id: {gene_function_id}"}]
+
+        return records
+
+    except Exception as e:
+        return [{"error": f"Failed to fetch annotation records for '{gene_function_id}': {str(e)}"}]
 
 
 def get_entity_by_id(entity_id: str) -> dict[str, Any]:
