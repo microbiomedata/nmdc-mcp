@@ -368,9 +368,7 @@ def fetch_functional_annotation_records(
         requests.HTTPError: If the API request fails
     """
     # Prepare the request payload
-    payload = {
-        "data_object_filter": []
-    }
+    payload = {"data_object_filter": []}
     if filter_criteria:
         payload.update(filter_criteria)
 

@@ -205,7 +205,10 @@ def get_samples_by_annotation(
         else:
             return [
                 {
-                    "error": "Unsupported gene function ID prefix. Supported prefixes: KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"
+                    "error": (
+                        "Unsupported gene function ID prefix. Supported prefixes:"
+                        " KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"
+                    )
                 }
             ]
 
@@ -231,7 +234,10 @@ def get_samples_by_annotation(
         if not records:
             return [
                 {
-                    "message": f"No functional annotation records found for gene_function_id: {gene_function_id}"
+                    "message": (
+                        "No functional annotation records found for gene_function_id:"
+                        f" {gene_function_id}"
+                    )
                 }
             ]
 
@@ -240,7 +246,10 @@ def get_samples_by_annotation(
     except Exception as e:
         return [
             {
-                "error": f"Failed to fetch annotation records for '{gene_function_id}': {str(e)}"
+                "error": (
+                    f"Failed to fetch annotation records for '{gene_function_id}':"
+                    f" {str(e)}"
+                )
             }
         ]
 
@@ -321,8 +330,7 @@ def get_entity_by_id_with_projection(
     except Exception as e:
         return {
             "error": (
-                f"Failed to retrieve entity '{entity_id}' "
-                f"from '{collection}': {str(e)}"
+                f"Failed to retrieve entity '{entity_id}' from '{collection}': {str(e)}"
             ),
             "entity_id": entity_id,
             "collection": collection,
@@ -511,7 +519,7 @@ def get_all_collection_ids(
             "note": (
                 f"Successfully fetched {records_fetched:,} IDs from {collection} "
                 f"in {len(batches)} batch(es).{note_suffix} "
-                f"Use these IDs with get_entity_by_id() for random document selection."
+                "Use these IDs with get_entity_by_id() for random document selection."
             ),
         }
 
@@ -700,7 +708,7 @@ def get_random_collection_ids(
                 "sampled_ids": all_ids,
                 "note": (
                     f"Returned all {len(all_ids)} IDs from {collection} "
-                    f"(collection smaller than requested sample)."
+                    "(collection smaller than requested sample)."
                 ),
             }
 
@@ -747,7 +755,7 @@ def get_random_collection_ids(
             "note": (
                 f"Randomly sampled {len(sampled_ids):,} IDs from "
                 f"{actual_count:,} total IDs in {collection}. "
-                f"Use these IDs with get_entity_by_id() to retrieve random documents."
+                "Use these IDs with get_entity_by_id() to retrieve random documents."
             ),
         }
 
@@ -931,7 +939,7 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
                 f" (limited to max_records={max_records}; there may be more results)"
             )
             logging.warning(
-                f"Potential truncation in get_biosamples_for_study: "
+                "Potential truncation in get_biosamples_for_study: "
                 f"returned {len(biosample_ids)} IDs for study {study_id}, "
                 f"may be more results beyond max_records={max_records}"
             )
@@ -956,8 +964,7 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
             "potentially_truncated": False,
             "error": f"Failed to get biosample IDs for study {study_id}: {str(e)}",
             "note": (
-                f"Error occurred while retrieving biosample IDs "
-                f"for study {study_id}"
+                f"Error occurred while retrieving biosample IDs for study {study_id}"
             ),
         }
 
@@ -1027,7 +1034,7 @@ def get_entities_by_ids_with_projection(
         if len(entity_ids) > MAX_ENTITY_IDS_PER_REQUEST:
             return {
                 "error": (
-                    f"Too many entity IDs requested. Maximum is "
+                    "Too many entity IDs requested. Maximum is "
                     f"{MAX_ENTITY_IDS_PER_REQUEST} per request."
                 ),
                 "entities": [],
@@ -1224,7 +1231,10 @@ def search_studies_by_doi_criteria(
 
         if doi_provider and doi_provider not in valid_providers:
             return {
-                "error": f"Invalid doi_provider '{doi_provider}'. Valid values: {sorted(valid_providers)}",  # noqa: E501
+                "error": (  # noqa: E501
+                    f"Invalid doi_provider '{doi_provider}'. Valid values:"
+                    f" {sorted(valid_providers)}"
+                ),
                 "search_criteria": {
                     "doi_provider": doi_provider,
                     "doi_category": doi_category,
@@ -1234,7 +1244,10 @@ def search_studies_by_doi_criteria(
 
         if doi_category and doi_category not in valid_categories:
             return {
-                "error": f"Invalid doi_category '{doi_category}'. Valid values: {sorted(valid_categories)}",  # noqa: E501
+                "error": (  # noqa: E501
+                    f"Invalid doi_category '{doi_category}'. Valid values:"
+                    f" {sorted(valid_categories)}"
+                ),
                 "search_criteria": {
                     "doi_provider": doi_provider,
                     "doi_category": doi_category,
