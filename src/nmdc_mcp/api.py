@@ -373,25 +373,30 @@ def fetch_functional_annotation_records(
     }
     if filter_criteria:
         payload.update(filter_criteria)
-    
+
+    if max_records is not None:
+        url = f"{base_url}?limit={max_records}"
+    else:
+        url = base_url
+
     if verbose:
-        print(f"Fetching functional annotation records from: {base_url}")
+        print(f"Fetching functional annotation records from: {url}")
         print(f"Payload: {json.dumps(payload, indent=2)}")
 
     try:
-        response = requests.post(base_url, json=payload)
+        response = requests.post(url, json=payload)
         response.raise_for_status()
-        
+
         data = response.json()
-        
+
         # Extract records from response
         records = data if isinstance(data, list) else data.get("results", [])
-        
+
         if verbose:
             print(f"Retrieved {len(records)} functional annotation records")
-        
+
         return records
-        
+
     except requests.exceptions.RequestException as e:
         if verbose:
             print(f"Error fetching functional annotation records: {str(e)}")

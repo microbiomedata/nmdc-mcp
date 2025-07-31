@@ -172,7 +172,7 @@ def get_samples_by_annotation(
     functional annotation records that match the specified gene function ID.
 
     Args:
-        gene_function_id (str): The gene function ID to search for 
+        gene_function_id (str): The gene function ID to search for
             (e.g., "KEGG.ORTHOLOGY:K00001", "COG:COG0001")
         max_records (int): Maximum number of records to return (default: 50)
 
@@ -187,7 +187,9 @@ def get_samples_by_annotation(
     try:
         # Validate input
         if not gene_function_id or not gene_function_id.strip():
-            return [{"error": "gene_function_id parameter is required and cannot be empty"}]
+            return [
+                {"error": "gene_function_id parameter is required and cannot be empty"}
+            ]
 
         gene_function_id = gene_function_id.strip()
 
@@ -201,7 +203,11 @@ def get_samples_by_annotation(
         elif gene_function_id.startswith("GO:"):
             table = "go_function"
         else:
-            return [{"error": f"Unsupported gene function ID prefix. Supported prefixes: KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"}]
+            return [
+                {
+                    "error": "Unsupported gene function ID prefix. Supported prefixes: KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"
+                }
+            ]
 
         # Build filter criteria with new format
         filter_criteria = {
@@ -210,7 +216,7 @@ def get_samples_by_annotation(
                     "op": "==",
                     "field": "id",
                     "value": gene_function_id,
-                    "table": table
+                    "table": table,
                 }
             ]
         }
@@ -223,12 +229,20 @@ def get_samples_by_annotation(
         )
 
         if not records:
-            return [{"message": f"No functional annotation records found for gene_function_id: {gene_function_id}"}]
+            return [
+                {
+                    "message": f"No functional annotation records found for gene_function_id: {gene_function_id}"
+                }
+            ]
 
         return records
 
     except Exception as e:
-        return [{"error": f"Failed to fetch annotation records for '{gene_function_id}': {str(e)}"}]
+        return [
+            {
+                "error": f"Failed to fetch annotation records for '{gene_function_id}': {str(e)}"
+            }
+        ]
 
 
 def get_entity_by_id(entity_id: str) -> dict[str, Any]:
@@ -875,7 +889,9 @@ def get_biosamples_for_study(study_id: str, max_records: int = 50) -> dict[str, 
     try:
         # First verify the study exists
         study_data = get_entity_by_id_with_projection(
-            entity_id=study_id, collection="study_set", projection=["id", "name"]
+            entity_id=study_id,
+            collection="study_set",
+            projection=["id", "name"],
         )
 
         if "error" in study_data:
