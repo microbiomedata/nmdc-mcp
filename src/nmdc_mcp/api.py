@@ -341,3 +341,61 @@ def fetch_nmdc_biosample_records_paged(
         max_records=max_records,
         verbose=verbose,
     )
+
+
+def fetch_functional_annotation_records(
+    filter_criteria: dict[str, Any] | None = None,
+    max_records: int | None = None,
+    base_url: str = "https://data.microbiomedata.org/api/biosample/search",
+    verbose: bool = False,
+) -> list[dict[str, Any]]:
+    """
+    Fetch functional annotation records from the NMDC data portal.
+
+    This function queries the data.microbiomedata.org/api/biosample/search endpoint
+    to retrieve functional annotation data.
+
+    Args:
+        filter_criteria: Filter criteria for the search (e.g., conditions array)
+        max_records: Maximum number of records to retrieve
+        base_url: Base URL for the functional annotation search API
+        verbose: Enable verbose logging
+
+    Returns:
+        List of dictionaries containing functional annotation records
+
+    Raises:
+        requests.HTTPError: If the API request fails
+    """
+    # Prepare the request payload
+    payload: dict[str, Any] = {"data_object_filter": []}
+    if filter_criteria:
+        payload.update(filter_criteria)
+
+    if max_records is not None:
+        url = f"{base_url}?limit={max_records}"
+    else:
+        url = base_url
+
+    if verbose:
+        print(f"Fetching functional annotation records from: {url}")
+        print(f"Payload: {json.dumps(payload, indent=2)}")
+
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+
+        data = response.json()
+
+        # Extract records from response
+        records = data if isinstance(data, list) else data.get("results", [])
+
+        if verbose:
+            print(f"Retrieved {len(records)} functional annotation records")
+
+        return records
+
+    except requests.exceptions.RequestException as e:
+        if verbose:
+            print(f"Error fetching functional annotation records: {str(e)}")
+        raise
