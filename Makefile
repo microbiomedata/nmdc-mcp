@@ -118,5 +118,3 @@ local/goose-demo-studies-with-publications.txt:
 		--dangerously-skip-permissions \
 		--print "what are the ids, names and titles of studies with publication DOIs?" 2>&1 | tee $@
 
-
-goose session --with-extension "uvx nmdc-mcp"
