@@ -163,7 +163,7 @@ def get_samples_by_ecosystem(
 
 def get_samples_by_annotation(
     gene_function_id: str,
-    max_records: int = 50,
+    max_records: int | None = None,
 ) -> list[dict[str, Any]]:
     """
     Fetch NMDC functional annotation records for a specific gene function ID.
@@ -174,7 +174,7 @@ def get_samples_by_annotation(
     Args:
         gene_function_id (str): The gene function ID to search for
             (e.g., "KEGG.ORTHOLOGY:K00001", "COG:COG0001")
-        max_records (int): Maximum number of records to return (default: 50)
+        max_records (int | None): Maximum number of records to return
 
     Returns:
         List[Dict[str, Any]]: List of functional annotation records that match
