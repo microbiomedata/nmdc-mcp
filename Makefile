@@ -99,27 +99,24 @@ test-version:
 	@echo "🔢 Testing version flag..."
 	uv run nmdc-mcp --version
 
-# NMDC MCP - Claude Desktop config:
-#   Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
-#   {
-#     "mcpServers": {
-#       "nmdc-mcp": {
-#         "command": "uvx",
-#         "args": ["nmdc-mcp"]
-#       }
-#     }
-#   }
-#
-# Claude Code MCP setup:
-#   claude mcp add -s project nmdc-mcp uvx nmdc-mcp
-#
-# Goose setup:
-#   goose session --with-extension "uvx nmdc-mcp"
-
+# --dangerously-skip-permissions is useful here for automation
+# but is discouraged in production
 local/claude-demo-studies-with-publications.txt:
 	claude \
-        --debug \
-        --verbose \
-        --mcp-config agent-configs/local-nmdc-mcp-for-claude.json \
-        --dangerously-skip-permissions \
-        --print "what are the ids, names and titles of studies with publication DOIs?" 2>&1 | tee $@
+		--debug \
+		--verbose \
+		--mcp-config agent-configs/local-nmdc-mcp-for-claude.json \
+		--dangerously-skip-permissions \
+		--print "what are the ids, names and titles of studies with publication DOIs?" 2>&1 | tee $@
+
+local/goose-demo-studies-with-publications.txt:
+	goose session \
+		--with-extension "uv run nmdc-mcp" \
+		--debug \
+		--verbose \
+		--mcp-config agent-configs/local-nmdc-mcp-for-goose.json \
+		--dangerously-skip-permissions \
+		--print "what are the ids, names and titles of studies with publication DOIs?" 2>&1 | tee $@
+
+
+goose session --with-extension "uvx nmdc-mcp"
