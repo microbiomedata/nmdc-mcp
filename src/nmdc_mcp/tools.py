@@ -166,23 +166,34 @@ def get_samples_by_annotation(
     max_records: int | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Fetch NMDC functional annotation records for a specific gene function ID.
+    Find biosamples that have specific functional annotations (gene functions).
 
-    This function queries the functional_annotation_agg collection to retrieve
-    functional annotation records that match the specified gene function ID.
+    **IMPORTANT**: This returns BIOSAMPLE records (not functional annotation records)
+    that contain the specified gene function. Each biosample includes detailed
+    environmental metadata, omics processing data, and analysis results.
+
+    This tool searches biosamples by functional annotation criteria and returns
+    complete biosample information. Use max_records to limit response size as
+    each biosample can be very large (includes all omics data).
 
     Args:
         gene_function_id (str): The gene function ID to search for
-            (e.g., "KEGG.ORTHOLOGY:K00001", "COG:COG0001")
-        max_records (int | None): Maximum number of records to return
+            (e.g., "KEGG.ORTHOLOGY:K00001", "COG:COG0001", "PFAM:PF00001",
+            "GO:GO0000001")
+        max_records (int | None): Maximum number of biosample records to return
+            Recommend keeping this small (≤10) as each record can be very large
 
     Returns:
-        List[Dict[str, Any]]: List of functional annotation records that match
-            the specified gene function ID.
+        List[Dict[str, Any]]: List of BIOSAMPLE records that have the requested
+            functional annotation. Each record contains complete biosample metadata,
+            environmental data, and associated omics processing information.
 
     Examples:
-        - get_samples_by_annotation("KEGG.ORTHOLOGY:K00001")
-        - get_samples_by_annotation("COG:COG0001", max_records=100)
+        - get_samples_by_annotation("KEGG.ORTHOLOGY:K00001", max_records=5)
+        - get_samples_by_annotation("COG:COG0001", max_records=3)
+
+    **Expected workflow**: Use this tool directly with a specific gene function ID.
+    Do NOT explore collections first - this tool handles the search internally.
     """
     try:
         # Validate input
@@ -224,10 +235,11 @@ def get_samples_by_annotation(
             ]
         }
 
-        # Fetch records from functional_annotation_agg collection
+        # Fetch records with essential fields only to avoid large responses
         records = fetch_functional_annotation_records(
             filter_criteria=filter_criteria,
             max_records=max_records,
+            projection=None,  # Uses default essential fields projection
             verbose=True,
         )
 
