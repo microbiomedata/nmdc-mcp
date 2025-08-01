@@ -12,5 +12,5 @@ For developers development, this repo prioritizes using the Claude CLI for integ
 for running Makefile targets like `local/claude-demo-studies-with-publications.txt`.It launches the live/local
 MCP server with `uv run nmdc-mcp`. 
 
-End users will generally want to run the MCP server pacakge that has been published to PyPI, using
+End users will generally want to run the MCP server package that has been published to PyPI, using
 `uvx nmdc-mcp`
