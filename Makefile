@@ -1,4 +1,4 @@
-.PHONY: test-coverage clean install dev format lint all server build upload-test upload release deptry mypy test-mcp test-mcp-extended test-integration test-unit test-real-api test-version
+.PHONY: test-coverage clean install dev format lint all server build upload-test upload release deptry mypy test-mcp test-mcp-extended test-integration test-unit test-real-api test-version clean-claude-demo claude-demo-all claude-demo-functional-annotation
 
 # Default target
 all: clean install dev test-coverage format lint mypy deptry build test-mcp test-mcp-extended test-integration test-version
@@ -99,19 +99,30 @@ test-version:
 	@echo "🔢 Testing version flag..."
 	uv run nmdc-mcp --version
 
-# NMDC MCP - Claude Desktop config:
-#   Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
-#   {
-#     "mcpServers": {
-#       "nmdc-mcp": {
-#         "command": "uvx",
-#         "args": ["nmdc-mcp"]
-#       }
-#     }
-#   }
-#
-# Claude Code MCP setup:
-#   claude mcp add -s project nmdc-mcp uvx nmdc-mcp
-#
-# Goose setup:
-#   goose session --with-extension "uvx nmdc-mcp"
+# --dangerously-skip-permissions is useful here for automation
+# but is discouraged in production
+local/claude-demo-studies-with-publications.txt:
+	claude \
+		--debug \
+		--verbose \
+		--mcp-config agent-configs/local-nmdc-mcp-for-claude.json \
+		--dangerously-skip-permissions \
+		--print "what are the ids, names and titles of studies with publication DOIs?" 2>&1 | tee $@
+
+local/claude-demo-functional-annotation.txt:
+	claude \
+		--debug \
+		--verbose \
+		--mcp-config agent-configs/local-nmdc-mcp-for-claude.json \
+		--dangerously-skip-permissions \
+		--print "Use get_samples_by_annotation to find biosamples with KEGG orthology K00001. Return only 3 records and show just the biosample ID, name, and ecosystem type from each." 2>&1 | tee $@
+
+.PHONY: clean-claude-demo claude-demo-all claude-demo-functional-annotation
+
+claude-demo-functional-annotation: local/claude-demo-functional-annotation.txt
+
+claude-demo-all: clean-claude-demo local/claude-demo-studies-with-publications.txt local/claude-demo-functional-annotation.txt
+
+clean-claude-demo:
+	rm -f local/claude-demo-*.txt
+

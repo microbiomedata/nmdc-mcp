@@ -341,3 +341,84 @@ def fetch_nmdc_biosample_records_paged(
         max_records=max_records,
         verbose=verbose,
     )
+
+
+def fetch_functional_annotation_records(
+    filter_criteria: dict[str, Any] | None = None,
+    max_records: int | None = None,
+    base_url: str = "https://data.microbiomedata.org/api/biosample/search",
+    projection: list[str] | None = None,
+    verbose: bool = False,
+) -> list[dict[str, Any]]:
+    """
+    Fetch biosample records that have specific functional annotations.
+
+    This function queries the data.microbiomedata.org/api/biosample/search endpoint
+    to retrieve biosample records that match functional annotation criteria.
+    Uses projection to limit returned fields and avoid large response sizes.
+
+    Args:
+        filter_criteria: Filter criteria for the search (e.g., conditions array)
+        max_records: Maximum number of records to retrieve
+        base_url: Base URL for the biosample search API
+        projection: List of fields to include in response. If None, uses default fields
+        verbose: Enable verbose logging
+
+    Returns:
+        List of dictionaries containing biosample records with specified fields only
+
+    Raises:
+        requests.HTTPError: If the API request fails
+    """
+    # Default projection if none provided - essential fields only to avoid large
+    # responses
+    if projection is None:
+        projection = [
+            "id",
+            "name",
+            "description",
+            "study_id",
+            "ecosystem",
+            "ecosystem_category",
+            "ecosystem_type",
+            "ecosystem_subtype",
+            "env_broad_scale",
+            "env_local_scale",
+            "env_medium",
+            "latitude",
+            "longitude",
+            "collection_date",
+        ]
+
+    # Prepare the request payload with projection to limit returned fields
+    payload: dict[str, Any] = {"data_object_filter": [], "projection": projection}
+    if filter_criteria:
+        payload.update(filter_criteria)
+
+    if max_records is not None:
+        url = f"{base_url}?limit={max_records}"
+    else:
+        url = base_url
+
+    if verbose:
+        print(f"Fetching functional annotation records from: {url}")
+        print(f"Payload: {json.dumps(payload, indent=2)}")
+
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+
+        data = response.json()
+
+        # Extract records from response
+        records = data if isinstance(data, list) else data.get("results", [])
+
+        if verbose:
+            print(f"Retrieved {len(records)} functional annotation records")
+
+        return records
+
+    except requests.exceptions.RequestException as e:
+        if verbose:
+            print(f"Error fetching functional annotation records: {str(e)}")
+        raise
