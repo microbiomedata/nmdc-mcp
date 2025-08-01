@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "nmdc-mcp": {
+      "command": "uv",
+      "args": ["run", "nmdc-mcp"],
+      "cwd": "."
+    }
+  }
+}

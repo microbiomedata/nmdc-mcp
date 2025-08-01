@@ -115,3 +115,11 @@ test-version:
 #
 # Goose setup:
 #   goose session --with-extension "uvx nmdc-mcp"
+
+local/claude-demo-studies-with-publications.txt:
+	claude \
+        --debug \
+        --verbose \
+        --mcp-config agent-configs/local-nmdc-mcp-for-claude.json \
+        --dangerously-skip-permissions \
+        --print "what are the ids, names and titles of studies with publication DOIs?" 2>&1 | tee $@
