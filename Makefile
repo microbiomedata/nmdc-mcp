@@ -1,4 +1,4 @@
-.PHONY: test-coverage clean install dev format lint all server build upload-test upload release deptry mypy test-mcp test-mcp-extended test-integration test-unit test-real-api test-version
+.PHONY: test-coverage clean install dev format lint all server build upload-test upload release deptry mypy test-mcp test-mcp-extended test-integration test-unit test-real-api test-version clean-claude-demo claude-demo-all claude-demo-functional-annotation
 
 # Default target
 all: clean install dev test-coverage format lint mypy deptry build test-mcp test-mcp-extended test-integration test-version
@@ -109,12 +109,20 @@ local/claude-demo-studies-with-publications.txt:
 		--dangerously-skip-permissions \
 		--print "what are the ids, names and titles of studies with publication DOIs?" 2>&1 | tee $@
 
-local/goose-demo-studies-with-publications.txt:
-	goose session \
-		--with-extension "uv run nmdc-mcp" \
+local/claude-demo-functional-annotation.txt:
+	claude \
 		--debug \
 		--verbose \
-		--mcp-config agent-configs/local-nmdc-mcp-for-goose.json \
+		--mcp-config agent-configs/local-nmdc-mcp-for-claude.json \
 		--dangerously-skip-permissions \
-		--print "what are the ids, names and titles of studies with publication DOIs?" 2>&1 | tee $@
+		--print "Use get_samples_by_annotation to find biosamples with KEGG orthology K00001. Return only 3 records and show just the biosample ID, name, and ecosystem type from each." 2>&1 | tee $@
+
+.PHONY: clean-claude-demo claude-demo-all claude-demo-functional-annotation
+
+claude-demo-functional-annotation: local/claude-demo-functional-annotation.txt
+
+claude-demo-all: clean-claude-demo local/claude-demo-studies-with-publications.txt local/claude-demo-functional-annotation.txt
+
+clean-claude-demo:
+	rm -f local/claude-demo-*.txt
 
