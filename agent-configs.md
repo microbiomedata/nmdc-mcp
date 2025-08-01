@@ -1,6 +1,6 @@
 Developers and users of this MCP server are responsible for downloading, funding and configuring a LLM agent
 to interact with the MCP server. Claude and Goose are common choices. Both have desktop and CLI versions
-for at least a few operating systems (but nto necessarily both for all platforms.)
+for at least a few operating systems (but not necessarily both for all platforms.)
 
 * https://docs.anthropic.com/en/docs/claude-code/setup
 * https://docs.anthropic.com/en/docs/claude-code/mcp
