@@ -422,3 +422,58 @@ def fetch_functional_annotation_records(
         if verbose:
             print(f"Error fetching functional annotation records: {str(e)}")
         raise
+
+
+def fetch_study_data_objects(
+    study_id: str,
+    base_url: str = "https://api-dev.microbiomedata.org/data_objects/study",
+    verbose: bool = False,
+) -> list[dict[str, Any]]:
+    """
+    Fetch data objects for a specific study using the NMDC runtime API.
+
+    This function queries the runtime API endpoint to retrieve all data objects
+    (including biosample relationships) associated with a given study.
+
+    Args:
+        study_id: NMDC study ID (e.g., "nmdc:sty-11-abc123")
+        base_url: Base URL for the runtime API data objects endpoint
+        verbose: Enable verbose logging
+
+    Returns:
+        List of dictionaries containing biosample and data object information
+        Each dictionary has keys: "biosample_id" and "data_objects" (list)
+
+    Raises:
+        requests.HTTPError: If the API request fails
+    """
+    url = f"{base_url}/{study_id}"
+
+    if verbose:
+        print(f"Fetching study data objects from: {url}")
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+
+        data = response.json()
+
+        # The API returns a list of dictionaries with biosample_id and data_objects
+        if isinstance(data, list):
+            records = data
+        else:
+            # Handle case where response might be wrapped in another structure
+            records = data.get("results", data.get("data", []))
+
+        if verbose:
+            print(
+                f"Retrieved data objects for {len(records)} biosamples in "
+                f"study {study_id}"
+            )
+
+        return records
+
+    except requests.exceptions.RequestException as e:
+        if verbose:
+            print(f"Error fetching study data objects: {str(e)}")
+        raise
