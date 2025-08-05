@@ -467,7 +467,8 @@ def fetch_study_data_objects(
 
         if verbose:
             print(
-                f"Retrieved data objects for {len(records)} biosamples in study {study_id}"
+                f"Retrieved data objects for {len(records)} biosamples in "
+                f"study {study_id}"
             )
 
         return records

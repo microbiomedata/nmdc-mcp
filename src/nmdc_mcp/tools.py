@@ -168,13 +168,16 @@ def get_samples_by_annotation(
     max_records: int | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Find biosamples with functional annotations OR get data objects for a specific biosample.
+    Find biosamples with functional annotations OR get data objects for a specific
+    biosample.
 
     This function handles two main use cases:
     1. Gene function search: Find biosamples that have specific functional annotations
-    2. Biosample data objects: Get data objects (like GFF files) for a specific biosample
+    2. Biosample data objects: Get data objects (like GFF files) for a specific
+       biosample
 
-    The function automatically detects the input type and handles the request accordingly.
+    The function automatically detects the input type and handles the request
+    accordingly.
 
     Args:
         input_id (str): Either a gene function ID (e.g., "KEGG.ORTHOLOGY:K00001",
@@ -287,7 +290,10 @@ def _get_data_objects_for_biosample(
     if "error" in biosample_data:
         return [
             {
-                "error": f"Biosample {biosample_id} not found: {biosample_data.get('error')}"
+                "error": (
+                    f"Biosample {biosample_id} not found: "
+                    f"{biosample_data.get('error')}"
+                )
             }
         ]
 
@@ -340,10 +346,10 @@ def _get_data_objects_for_biosample(
 
         if not filtered_objects:
             available_types = list(
-                set(
+                {
                     obj.get("data_object_type", "Unknown")
                     for obj in biosample_data_objects
-                )
+                }
             )
             return [
                 {
