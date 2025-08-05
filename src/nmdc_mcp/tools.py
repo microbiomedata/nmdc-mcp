@@ -17,6 +17,7 @@ from .api import (
     fetch_nmdc_entities_by_ids_with_projection,
     fetch_nmdc_entity_by_id,
     fetch_nmdc_entity_by_id_with_projection,
+    fetch_study_data_objects,
 )
 from .constants import (
     DEFAULT_PAGE_SIZE,
@@ -162,108 +163,223 @@ def get_samples_by_ecosystem(
 
 
 def get_samples_by_annotation(
-    gene_function_id: str,
+    input_id: str,
+    data_object_type_filter: str | None = None,
     max_records: int | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Find biosamples that have specific functional annotations (gene functions).
+    Find biosamples with functional annotations OR get data objects for a specific biosample.
 
-    **IMPORTANT**: This returns BIOSAMPLE records (not functional annotation records)
-    that contain the specified gene function. Each biosample includes detailed
-    environmental metadata, omics processing data, and analysis results.
+    This function handles two main use cases:
+    1. Gene function search: Find biosamples that have specific functional annotations
+    2. Biosample data objects: Get data objects (like GFF files) for a specific biosample
 
-    This tool searches biosamples by functional annotation criteria and returns
-    complete biosample information. Use max_records to limit response size as
-    each biosample can be very large (includes all omics data).
+    The function automatically detects the input type and handles the request accordingly.
 
     Args:
-        gene_function_id (str): The gene function ID to search for
-            (e.g., "KEGG.ORTHOLOGY:K00001", "COG:COG0001", "PFAM:PF00001",
-            "GO:GO0000001")
-        max_records (int | None): Maximum number of biosample records to return
-            Recommend keeping this small (≤10) as each record can be very large
+        input_id (str): Either a gene function ID (e.g., "KEGG.ORTHOLOGY:K00001",
+            "COG:COG0001", "PFAM:PF00001", "GO:GO0000001") OR a biosample ID
+            (e.g., "nmdc:bsm-11-abc123")
+        data_object_type_filter (str, optional): Filter data objects by type when
+            input_id is a biosample. Examples: "Functional Annotation GFF",
+            "Assembly Contigs", "KEGG Orthology"
+        max_records (int | None): Maximum number of records to return
 
     Returns:
-        List[Dict[str, Any]]: List of BIOSAMPLE records that have the requested
-            functional annotation. Each record contains complete biosample metadata,
-            environmental data, and associated omics processing information.
+        List[Dict[str, Any]]:
+        - For gene function searches: List of BIOSAMPLE records with the annotation
+        - For biosample searches: List of data objects associated with the biosample
 
     Examples:
         - get_samples_by_annotation("KEGG.ORTHOLOGY:K00001", max_records=5)
-        - get_samples_by_annotation("COG:COG0001", max_records=3)
-
-    **Expected workflow**: Use this tool directly with a specific gene function ID.
-    Do NOT explore collections first - this tool handles the search internally.
+        - get_samples_by_annotation("nmdc:bsm-11-abc123", "Functional Annotation GFF")
+        - get_samples_by_annotation("nmdc:bsm-11-abc123")  # All data objects
     """
     try:
         # Validate input
-        if not gene_function_id or not gene_function_id.strip():
-            return [
-                {"error": "gene_function_id parameter is required and cannot be empty"}
-            ]
+        if not input_id or not input_id.strip():
+            return [{"error": "input_id parameter is required and cannot be empty"}]
 
-        gene_function_id = gene_function_id.strip()
+        input_id = input_id.strip()
 
-        # Determine table based on gene function ID prefix
-        if gene_function_id.startswith("KEGG.ORTHOLOGY:"):
-            table = "kegg_function"
-        elif gene_function_id.startswith("COG:"):
-            table = "cog_function"
-        elif gene_function_id.startswith("PFAM:"):
-            table = "pfam_function"
-        elif gene_function_id.startswith("GO:"):
-            table = "go_function"
-        else:
-            return [
-                {
-                    "error": (
-                        "Unsupported gene function ID prefix. Supported prefixes:"
-                        " KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"
-                    )
-                }
-            ]
+        # Determine if input is a biosample ID or gene function ID
+        if input_id.startswith("nmdc:bsm-"):
+            # Handle biosample ID - get data objects via runtime API
+            return _get_data_objects_for_biosample(
+                input_id, data_object_type_filter, max_records
+            )
 
-        # Build filter criteria with new format
-        filter_criteria = {
-            "conditions": [
-                {
-                    "op": "==",
-                    "field": "id",
-                    "value": gene_function_id,
-                    "table": table,
-                }
-            ]
-        }
-
-        # Fetch records with essential fields only to avoid large responses
-        records = fetch_functional_annotation_records(
-            filter_criteria=filter_criteria,
-            max_records=max_records,
-            projection=None,  # Uses default essential fields projection
-            verbose=True,
-        )
-
-        if not records:
-            return [
-                {
-                    "message": (
-                        "No functional annotation records found for gene_function_id:"
-                        f" {gene_function_id}"
-                    )
-                }
-            ]
-
-        return records
+        # Handle gene function ID - search for biosamples with that annotation
+        return _get_biosamples_by_gene_function(input_id, max_records)
 
     except Exception as e:
+        return [{"error": f"Failed to process request for '{input_id}': {str(e)}"}]
+
+
+def _get_biosamples_by_gene_function(
+    gene_function_id: str, max_records: int | None = None
+) -> list[dict[str, Any]]:
+    """
+    Internal function to find biosamples that have specific functional annotations.
+    """
+    # Determine table based on gene function ID prefix
+    if gene_function_id.startswith("KEGG.ORTHOLOGY:"):
+        table = "kegg_function"
+    elif gene_function_id.startswith("COG:"):
+        table = "cog_function"
+    elif gene_function_id.startswith("PFAM:"):
+        table = "pfam_function"
+    elif gene_function_id.startswith("GO:"):
+        table = "go_function"
+    else:
         return [
             {
                 "error": (
-                    f"Failed to fetch annotation records for '{gene_function_id}':"
-                    f" {str(e)}"
+                    "Unsupported gene function ID prefix. Supported prefixes: "
+                    "KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"
                 )
             }
         ]
+
+    # Build filter criteria
+    filter_criteria = {
+        "conditions": [
+            {
+                "op": "==",
+                "field": "id",
+                "value": gene_function_id,
+                "table": table,
+            }
+        ]
+    }
+
+    # Fetch records with essential fields only to avoid large responses
+    records = fetch_functional_annotation_records(
+        filter_criteria=filter_criteria,
+        max_records=max_records,
+        projection=None,  # Uses default essential fields projection
+        verbose=True,
+    )
+
+    if not records:
+        return [
+            {"message": (f"No biosamples found with gene function: {gene_function_id}")}
+        ]
+
+    return records
+
+
+def _get_data_objects_for_biosample(
+    biosample_id: str,
+    data_object_type_filter: str | None = None,
+    max_records: int | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Internal function to get data objects for a specific biosample using runtime API.
+    """
+    # First, get the biosample to extract associated study IDs
+    biosample_data = get_entity_by_id_with_projection(
+        entity_id=biosample_id,
+        collection="biosample_set",
+        projection=["id", "name", "associated_studies"],
+    )
+
+    if "error" in biosample_data:
+        return [
+            {
+                "error": f"Biosample {biosample_id} not found: {biosample_data.get('error')}"
+            }
+        ]
+
+    associated_studies = biosample_data.get("associated_studies", [])
+    if not associated_studies:
+        return [
+            {"message": f"No associated studies found for biosample {biosample_id}"}
+        ]
+
+    # Get data objects for each associated study
+    all_data_objects = []
+    biosample_data_objects = []
+
+    for study_id in associated_studies:
+        try:
+            study_data_objects = fetch_study_data_objects(study_id, verbose=True)
+
+            # Find data objects for our specific biosample
+            for biosample_entry in study_data_objects:
+                if biosample_entry.get("biosample_id") == biosample_id:
+                    biosample_data_objects.extend(
+                        biosample_entry.get("data_objects", [])
+                    )
+                    break
+
+            all_data_objects.extend(study_data_objects)
+
+        except Exception as e:
+            print(f"Warning: Failed to fetch data objects for study {study_id}: {e}")
+            continue
+
+    if not biosample_data_objects:
+        return [
+            {
+                "message": f"No data objects found for biosample {biosample_id}",
+                "biosample_id": biosample_id,
+                "biosample_name": biosample_data.get("name", ""),
+                "associated_studies": associated_studies,
+            }
+        ]
+
+    # Filter by data object type if specified
+    if data_object_type_filter:
+        filtered_objects = [
+            obj
+            for obj in biosample_data_objects
+            if data_object_type_filter.lower()
+            in obj.get("data_object_type", "").lower()
+        ]
+
+        if not filtered_objects:
+            available_types = list(
+                set(
+                    obj.get("data_object_type", "Unknown")
+                    for obj in biosample_data_objects
+                )
+            )
+            return [
+                {
+                    "message": (
+                        f"No data objects of type '{data_object_type_filter}' found "
+                        f"for biosample {biosample_id}"
+                    ),
+                    "biosample_id": biosample_id,
+                    "biosample_name": biosample_data.get("name", ""),
+                    "available_data_object_types": sorted(available_types),
+                    "total_data_objects": len(biosample_data_objects),
+                }
+            ]
+
+        biosample_data_objects = filtered_objects
+
+    # Apply max_records limit if specified
+    if max_records and len(biosample_data_objects) > max_records:
+        biosample_data_objects = biosample_data_objects[:max_records]
+
+    # Format the response
+    result = {
+        "biosample_id": biosample_id,
+        "biosample_name": biosample_data.get("name", ""),
+        "associated_studies": associated_studies,
+        "data_objects_count": len(biosample_data_objects),
+        "data_objects": biosample_data_objects,
+    }
+
+    if data_object_type_filter:
+        result["filtered_by_type"] = data_object_type_filter
+
+    if max_records and len(biosample_data_objects) == max_records:
+        result["note"] = f"Results limited to {max_records} data objects"
+
+    return [result]
 
 
 def get_entity_by_id(entity_id: str) -> dict[str, Any]:
