@@ -5,12 +5,12 @@
 ################################################################################
 import logging
 import random
-import requests
 from datetime import datetime
-from typing import Any, List, Dict
+from typing import Any
+
+import requests
 
 from .api import (
-    fetch_functional_annotation_records,
     fetch_nmdc_biosample_records_paged,
     fetch_nmdc_collection_names,
     fetch_nmdc_collection_records_paged,
@@ -207,8 +207,8 @@ def get_data_objects_by_pfam_domains(
                 "error": "pfam_domain_ids parameter is required and cannot be empty",
                 "search_criteria": {
                     "pfam_domains": pfam_domain_ids,
-                    "biosample_limit": biosample_limit
-                }
+                    "biosample_limit": biosample_limit,
+                },
             }
 
         if not isinstance(pfam_domain_ids, list):
@@ -216,8 +216,8 @@ def get_data_objects_by_pfam_domains(
                 "error": "pfam_domain_ids must be a list of PFAM domain identifiers",
                 "search_criteria": {
                     "pfam_domains": pfam_domain_ids,
-                    "biosample_limit": biosample_limit
-                }
+                    "biosample_limit": biosample_limit,
+                },
             }
 
         # Validate and add PFAM: prefix to domain IDs if not present
@@ -228,8 +228,8 @@ def get_data_objects_by_pfam_domains(
                     "error": f"Invalid PFAM domain ID: {domain_id}. Must be a string.",
                     "search_criteria": {
                         "pfam_domains": pfam_domain_ids,
-                        "biosample_limit": biosample_limit
-                    }
+                        "biosample_limit": biosample_limit,
+                    },
                 }
 
             # Add PFAM: prefix if not present
@@ -241,30 +241,23 @@ def get_data_objects_by_pfam_domains(
         # Build filter criteria with AND logic for multiple PFAM domains
         conditions = []
         for pfam_id in processed_pfam_ids:
-            conditions.append({
-                "op": "==",
-                "field": "id",
-                "value": pfam_id,
-                "table": "pfam_function"
-            })
-
-        filter_criteria = {"conditions": conditions}
+            conditions.append(
+                {"op": "==", "field": "id", "value": pfam_id, "table": "pfam_function"}
+            )
 
         # Make the API call directly to get both count and results
+
         import requests
-        import json
-        
+
         base_url = "https://data.microbiomedata.org/api/biosample/search"
         url = f"{base_url}?limit={biosample_limit}"
-        
-        payload = {
-            "conditions": conditions
-        }
-        
+
+        payload = {"conditions": conditions}
+
         response = requests.post(url, json=payload)
         response.raise_for_status()
         data = response.json()
-        
+
         total_count = data.get("count", 0)
         biosample_records = data.get("results", [])
 
@@ -272,7 +265,7 @@ def get_data_objects_by_pfam_domains(
             return {
                 "search_criteria": {
                     "pfam_domains": pfam_domain_ids,
-                    "biosample_limit": biosample_limit
+                    "biosample_limit": biosample_limit,
                 },
                 "total_biosamples_available": total_count,
                 "biosample_count": 0,
@@ -280,7 +273,7 @@ def get_data_objects_by_pfam_domains(
                 "message": (
                     "No biosamples found containing all PFAM domains: "
                     f"{', '.join(processed_pfam_ids)}"
-                )
+                ),
             }
 
         # Process each biosample to extract data objects in the target format
@@ -311,7 +304,7 @@ def get_data_objects_by_pfam_domains(
                                 "type": informed.get("annotations", {}).get("type"),
                                 "omics_type": informed.get("annotations", {}).get(
                                     "omics_type"
-                                )
+                                ),
                             }
                             for informed in omics_data.get("was_informed_by", [])
                         ],
@@ -328,28 +321,28 @@ def get_data_objects_by_pfam_domains(
                                 "md5_checksum": output.get("md5_checksum"),
                                 "url": output.get("url"),
                                 "downloads": output.get("downloads"),
-                                "selected": output.get("selected")
+                                "selected": output.get("selected"),
                             }
                             for output in omics_data.get("outputs", [])
-                        ]
+                        ],
                     }
                     activities.append(activity)
 
             sample_record = {
                 "biosample_id": biosample_id,
                 "study_id": study_id,
-                "activities": activities
+                "activities": activities,
             }
             samples.append(sample_record)
 
         return {
             "search_criteria": {
                 "pfam_domains": pfam_domain_ids,
-                "biosample_limit": biosample_limit
+                "biosample_limit": biosample_limit,
             },
             "total_biosamples_available": total_count,
             "biosample_count": len(samples),
-            "samples": samples
+            "samples": samples,
         }
 
     except Exception as e:
@@ -357,13 +350,9 @@ def get_data_objects_by_pfam_domains(
             "error": f"Failed to get data objects by PFAM domains: {str(e)}",
             "search_criteria": {
                 "pfam_domains": pfam_domain_ids,
-                "biosample_limit": biosample_limit
-            }
+                "biosample_limit": biosample_limit,
+            },
         }
-
-
-
-
 
 
 def get_entity_by_id(entity_id: str) -> dict[str, Any]:
@@ -1290,8 +1279,6 @@ def get_study_doi_details(study_id: str) -> dict[str, Any]:
         }
 
 
-
-
 def search_studies_by_doi_criteria(
     doi_provider: str | None = None,
     doi_category: str | None = None,
@@ -1494,42 +1481,50 @@ def search_studies_by_doi_criteria(
 
 def fetch_and_filter_gff_by_pfam_domains(
     data_object_id: str,
-    pfam_domain_ids: List[str],
+    pfam_domain_ids: list[str],
     max_rows: int = 1000,
     sample_bytes: int = 5000000,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Fetch data object metadata and filter GFF content for specified PFAM domains.
-    
-    This tool takes a data object ID, resolves it to a download URL via the NMDC runtime API,
-    downloads the GFF file content (with optional byte limiting), and filters for rows 
+
+    This tool takes a data object ID, resolves it to a download URL via the
+    NMDC runtime API,
+    downloads the GFF file content (with optional byte limiting), and filters
+    for rows
     containing any of the specified PFAM domains.
-    
+
     Args:
         data_object_id (str): NMDC data object ID (e.g., "nmdc:dobj-11-abc123")
-        pfam_domain_ids (List[str]): List of PFAM domain identifiers to search for.
+        pfam_domain_ids (List[str]): List of PFAM domain identifiers to search
+            for.
             Examples: ["PF04183", "PF06276"], ["PF00005", "PF00072"]
             These will be matched case-insensitively in GFF annotation fields.
-        max_rows (int): Maximum number of matching rows to return (default: 1000).
+        max_rows (int): Maximum number of matching rows to return (default:
+            1000).
             This prevents context overflow from very large result sets.
-        sample_bytes (int): Maximum bytes to download from GFF file (default: 5MB).
-            This prevents downloading entire large files when only samples are needed.
-    
+        sample_bytes (int): Maximum bytes to download from GFF file (default:
+            5MB).
+            This prevents downloading entire large files when only samples are
+            needed.
+
     Returns:
         Dict[str, Any]: Structured response containing:
-            - data_object_metadata: Complete metadata from runtime API including download URL
-            - search_criteria: Details about domains searched and limits applied  
+            - data_object_metadata: Complete metadata from runtime API including
+              download URL
+            - search_criteria: Details about domains searched and limits applied
             - file_info: Information about the downloaded content
-            - matching_annotations: Filtered GFF rows containing the PFAM domains
+            - matching_annotations: Filtered GFF rows containing the PFAM
+              domains
             - summary: Statistics about processing and matches found
-    
+
     Examples:
         # Basic PFAM filtering for a data object
         fetch_and_filter_gff_by_pfam_domains(
-            "nmdc:dobj-11-abc123", 
+            "nmdc:dobj-11-abc123",
             ["PF04183", "PF06276"]
         )
-        
+
         # Limited sampling with specific row limit
         fetch_and_filter_gff_by_pfam_domains(
             "nmdc:dobj-11-def456",
@@ -1542,36 +1537,41 @@ def fetch_and_filter_gff_by_pfam_domains(
         # Validate inputs
         if not data_object_id:
             return {
-                "error": "data_object_id parameter is required and cannot be empty",
+                "error": ("data_object_id parameter is required and cannot be empty"),
                 "search_criteria": {
                     "data_object_id": data_object_id,
                     "pfam_domains": pfam_domain_ids,
                     "max_rows": max_rows,
-                    "sample_bytes": sample_bytes
-                }
+                    "sample_bytes": sample_bytes,
+                },
             }
-            
+
         if not pfam_domain_ids:
             return {
-                "error": "pfam_domain_ids parameter is required and cannot be empty",
+                "error": ("pfam_domain_ids parameter is required and cannot be empty"),
                 "search_criteria": {
                     "data_object_id": data_object_id,
                     "pfam_domains": pfam_domain_ids,
                     "max_rows": max_rows,
-                    "sample_bytes": sample_bytes
-                }
+                    "sample_bytes": sample_bytes,
+                },
             }
 
         # Step 1: Fetch data object metadata from runtime API
-        runtime_api_url = f"https://api.microbiomedata.org/data_objects/{data_object_id.replace(':', '%3A')}"
-        
+        runtime_api_url = (
+            f"https://api.microbiomedata.org/data_objects/"
+            f"{data_object_id.replace(':', '%3A')}"
+        )
+
         logger.info(f"Fetching metadata for data object: {data_object_id}")
-        metadata_response = requests.get(runtime_api_url, headers={"Accept": "application/json"})
+        metadata_response = requests.get(
+            runtime_api_url, headers={"Accept": "application/json"}
+        )
         metadata_response.raise_for_status()
-        
+
         data_object_metadata = metadata_response.json()
-        download_url = data_object_metadata.get('url')
-        
+        download_url = data_object_metadata.get("url")
+
         if not download_url:
             return {
                 "error": "No download URL found in data object metadata",
@@ -1580,8 +1580,8 @@ def fetch_and_filter_gff_by_pfam_domains(
                     "data_object_id": data_object_id,
                     "pfam_domains": pfam_domain_ids,
                     "max_rows": max_rows,
-                    "sample_bytes": sample_bytes
-                }
+                    "sample_bytes": sample_bytes,
+                },
             }
 
         # Step 2: Download GFF content (with byte limiting)
@@ -1589,41 +1589,41 @@ def fetch_and_filter_gff_by_pfam_domains(
         headers = {}
         if sample_bytes > 0:
             headers["Range"] = f"bytes=0-{sample_bytes-1}"
-            
+
         content_response = requests.get(download_url, headers=headers, timeout=30)
         content_response.raise_for_status()
-        
+
         # Get actual bytes downloaded
         content_length = len(content_response.content)
         was_truncated = content_length >= sample_bytes
-        
+
         # Step 3: Parse and filter GFF content
         content = content_response.text
-        lines = content.strip().split('\n')
-        
+        lines = content.strip().split("\n")
+
         # Normalize PFAM domain IDs for case-insensitive matching
         normalized_pfams = [pfam.upper() for pfam in pfam_domain_ids]
-        
+
         matching_annotations = []
         total_rows = 0
-        
+
         for line in lines:
             # Skip empty lines and comments
-            if not line.strip() or line.startswith('#'):
+            if not line.strip() or line.startswith("#"):
                 continue
-                
+
             total_rows += 1
-            
+
             # Check if line contains any PFAM domain (case-insensitive)
             line_upper = line.upper()
             if any(pfam in line_upper for pfam in normalized_pfams):
                 # Parse the GFF line into components
                 try:
-                    parts = line.split('\t')
+                    parts = line.split("\t")
                     if len(parts) >= 9:  # Standard GFF format has 9 columns
                         annotation = {
                             "seqname": parts[0],
-                            "source": parts[1], 
+                            "source": parts[1],
                             "feature": parts[2],
                             "start": parts[3],
                             "end": parts[4],
@@ -1631,7 +1631,7 @@ def fetch_and_filter_gff_by_pfam_domains(
                             "strand": parts[6],
                             "frame": parts[7],
                             "attributes": parts[8],
-                            "raw_line": line
+                            "raw_line": line,
                         }
                         matching_annotations.append(annotation)
                     else:
@@ -1639,15 +1639,14 @@ def fetch_and_filter_gff_by_pfam_domains(
                         matching_annotations.append({"raw_line": line})
                 except Exception as parse_error:
                     # If parsing fails, store raw line with error note
-                    matching_annotations.append({
-                        "raw_line": line,
-                        "parse_error": str(parse_error)
-                    })
-                
+                    matching_annotations.append(
+                        {"raw_line": line, "parse_error": str(parse_error)}
+                    )
+
                 # Limit rows to prevent context overflow
                 if len(matching_annotations) >= max_rows:
                     break
-        
+
         # Build response
         file_info = {
             "download_url": download_url,
@@ -1656,9 +1655,9 @@ def fetch_and_filter_gff_by_pfam_domains(
             "was_truncated": was_truncated,
             "total_rows_processed": total_rows,
             "matching_rows_found": len(matching_annotations),
-            "max_rows_applied": len(matching_annotations) >= max_rows
+            "max_rows_applied": len(matching_annotations) >= max_rows,
         }
-        
+
         summary = {
             "data_object_id": data_object_id,
             "pfam_domains_searched": pfam_domain_ids,
@@ -1666,23 +1665,23 @@ def fetch_and_filter_gff_by_pfam_domains(
             "file_size_bytes": content_length,
             "processing_limits": {
                 "max_rows": max_rows,
-                "sample_bytes": sample_bytes
-            }
+                "sample_bytes": sample_bytes,
+            },
         }
-        
+
         result = {
             "data_object_metadata": data_object_metadata,
             "search_criteria": {
                 "data_object_id": data_object_id,
                 "pfam_domains": pfam_domain_ids,
                 "max_rows": max_rows,
-                "sample_bytes": sample_bytes
+                "sample_bytes": sample_bytes,
             },
             "file_info": file_info,
             "matching_annotations": matching_annotations,
-            "summary": summary
+            "summary": summary,
         }
-        
+
         if matching_annotations:
             result["note"] = (
                 f"Successfully processed data object {data_object_id} and found "
@@ -1694,9 +1693,9 @@ def fetch_and_filter_gff_by_pfam_domains(
                 f"Processed data object {data_object_id} but found no annotations "
                 f"containing PFAM domains: {', '.join(pfam_domain_ids)}"
             )
-            
+
         return result
-        
+
     except requests.exceptions.RequestException as e:
         return {
             "error": f"Failed to fetch data or download content: {str(e)}",
@@ -1704,8 +1703,8 @@ def fetch_and_filter_gff_by_pfam_domains(
                 "data_object_id": data_object_id,
                 "pfam_domains": pfam_domain_ids,
                 "max_rows": max_rows,
-                "sample_bytes": sample_bytes
-            }
+                "sample_bytes": sample_bytes,
+            },
         }
     except Exception as e:
         return {
@@ -1714,8 +1713,6 @@ def fetch_and_filter_gff_by_pfam_domains(
                 "data_object_id": data_object_id,
                 "pfam_domains": pfam_domain_ids,
                 "max_rows": max_rows,
-                "sample_bytes": sample_bytes
-            }
+                "sample_bytes": sample_bytes,
+            },
         }
-
-

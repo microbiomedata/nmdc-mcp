@@ -13,7 +13,7 @@ install:
 
 # Run tests with coverage
 test-coverage:
-	uv run pytest --cov=nmdc_mcp --cov-report=html --cov-report=term tests/
+	uv run pytest --cov=nmdc_mcp --cov-report=html --cov-report=term --durations=0 tests/
 
 # Clean up build artifacts
 clean:
