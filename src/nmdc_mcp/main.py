@@ -35,7 +35,7 @@ except metadata.PackageNotFoundError:
 # Create the FastMCP instance at module level
 mcp: FastMCP = FastMCP(
     "nmdc_mcp",
-    description=(
+    instructions=(
         "NMDC (National Microbiome Data Collaborative) API tools for accessing "
         "microbiome data, biosamples, studies, and functional annotations. "
         "Provides access to genomic data objects, PFAM domain analysis, and "
