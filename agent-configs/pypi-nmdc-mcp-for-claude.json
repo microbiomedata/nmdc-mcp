@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nmdc-mcp": {
+      "command": "uvx",
+      "args": ["nmdc-mcp"]
+    }
+  }
+}
