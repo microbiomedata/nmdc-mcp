@@ -474,10 +474,13 @@ def run_aggregation_queries(query:dict, token:str, allow_broken_refs:bool=False)
     else:
         token = token
     params = {"allow_broken_refs": allow_broken_refs}
-
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
     url = f"{BASE_URL}/queries:run"
     try:
-        response = requests.post(url, params=params, data=query)
+        response = requests.post(url, params=params, data=query, headers=headers)
         response.raise_for_status()
         return response.json()
 
