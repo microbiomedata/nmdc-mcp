@@ -17,6 +17,7 @@ from .api import (
     fetch_nmdc_collection_stats,
     fetch_nmdc_entities_by_ids_with_projection,
     fetch_nmdc_entity_by_id,
+    fetch_functional_annotation_records,
     fetch_nmdc_entity_by_id_with_projection,
 )
 from .constants import (
