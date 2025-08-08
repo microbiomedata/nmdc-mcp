@@ -18,7 +18,7 @@ You can use the CLI:
 nmdc-mcp
 ```
 
-Or import in your Python code:
+Or import in your Python code: # TODO incorrect instructions
 
 ```python
 from nmdc_mcp.main import create_mcp
@@ -26,6 +26,19 @@ from nmdc_mcp.main import create_mcp
 mcp = create_mcp()
 mcp.run()
 ```
+
+Or utilize the nmdc_mcp.client by running 
+
+```bash
+uv run 'path/to/nmdc_mcp/client.py' 'path/to/nmdc_mcp/main.py'
+```
+
+Or using python
+
+```bash
+python 'path/to/nmdc_mcp/client.py' 'path/to/nmdc_mcp/main.py'
+```
+
 
 ## Development
 
