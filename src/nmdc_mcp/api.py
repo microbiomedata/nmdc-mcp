@@ -373,7 +373,10 @@ def fetch_functional_annotation_records(
     """
 
     # Prepare the request payload
-    payload: dict[str, Any] = {"data_object_filter": filter_criteria, "conditions": conditions}
+    payload: dict[str, Any] = {
+        "data_object_filter": filter_criteria,
+        "conditions": conditions,
+    }
 
     if max_records is not None:
         url = f"{base_url}?limit={max_records}"
@@ -459,12 +462,15 @@ def fetch_study_data_objects(
             print(f"Error fetching study data objects: {str(e)}")
         raise
 
-def run_aggregation_queries(query:dict, token:str, allow_broken_refs:bool=False)-> dict:
+
+def run_aggregation_queries(
+    query: dict, token: str, allow_broken_refs: bool = False
+) -> dict:
     """
     Run a MongoDB compatible aggregation query via the NMDC API. The endpoint preforms find, aggregate, update, delete, and getMore commands for users that have adequate permissions.
 
     Args:
-        query: a dictionary that contains the MongoDB compatible query. 
+        query: a dictionary that contains the MongoDB compatible query.
         token: bearer token to authorize the request.
         allow_broken_refs: boolean to determine if the query being run should allow for broken references in the database.
 
@@ -479,10 +485,7 @@ def run_aggregation_queries(query:dict, token:str, allow_broken_refs:bool=False)
     else:
         token = token
     params = {"allow_broken_refs": allow_broken_refs}
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     url = f"{BASE_URL}/queries:run"
     try:
         response = requests.post(url, params=params, data=query, headers=headers)
@@ -491,4 +494,3 @@ def run_aggregation_queries(query:dict, token:str, allow_broken_refs:bool=False)
 
     except requests.exceptions.RequestException as e:
         print("An error calling the API occured:\n", e)
-    

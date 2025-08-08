@@ -2,7 +2,6 @@
 Constants used across the NMDC MCP package.
 """
 
-
 BASE_URL = "https://api.microbiomedata.org"
 """Production Runtime API base URL"""
 

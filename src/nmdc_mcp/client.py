@@ -22,13 +22,14 @@ model = os.getenv("MODEL", "gpt-4o")
 BASE_URL = os.getenv("BASE_URL", "https://api.openai.com/v1")
 client = openai.OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
+
 class MCPClient:
     def __init__(self):
         # Initialize session and client objects
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
         if API_KEY == None:
-            raise Exception ("API_KEY must be set in .env file.")
+            raise Exception("API_KEY must be set in .env file.")
         self.client = AsyncOpenAI(base_url=BASE_URL, api_key=API_KEY)
         self.messages = []
         self.tool_to_session = {}
@@ -93,7 +94,7 @@ class MCPClient:
             "\nAvailable resources:",
             [resource.name for resource in resources.resources],
         )
-        
+
         # Discover and convert tools to OpenAI format
         response = await self.session.list_tools()
         for tool in response.tools:

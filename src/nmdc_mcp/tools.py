@@ -249,7 +249,9 @@ def get_data_objects_by_pfam_domains(
             )
 
         # Make the API call
-        data = fetch_functional_annotation_records(conditions=conditions, max_records=biosample_limit)
+        data = fetch_functional_annotation_records(
+            conditions=conditions, max_records=biosample_limit
+        )
 
         total_count = data.get("count", 0)
         biosample_records = data.get("results", [])
@@ -1710,6 +1712,7 @@ def fetch_and_filter_gff_by_pfam_domains(
             },
         }
 
+
 def get_samples_by_annotation(
     gene_function_id: str,
     max_records: int | None = None,
@@ -1774,19 +1777,18 @@ def get_samples_by_annotation(
             ]
 
         # Build filter criteria with new format
-        conditions = [{
-            "op": "==",
-            "field": "id",
-            "value": gene_function_id,
-            "table": table,
-        }]
+        conditions = [
+            {
+                "op": "==",
+                "field": "id",
+                "value": gene_function_id,
+                "table": table,
+            }
+        ]
 
-     
         # Fetch records with essential fields only to avoid large responses
         data = fetch_functional_annotation_records(
-            conditions=conditions,
-            max_records=max_records,
-            offset=offset
+            conditions=conditions, max_records=max_records, offset=offset
         )
 
         total_count = data.get("count", 0)
@@ -1802,9 +1804,7 @@ def get_samples_by_annotation(
                 "total_biosamples_available": total_count,
                 "biosample_count": 0,
                 "samples": [],
-                "message": (
-                    "No biosamples found containing"
-                )
+                "message": ("No biosamples found containing"),
             }
 
         # Process each biosample to extract data objects in the target format
@@ -1870,7 +1870,7 @@ def get_samples_by_annotation(
             "search_criteria": {
                 "gene_function_id": gene_function_id,
                 "max_records": max_records,
-                "offset": offset
+                "offset": offset,
             },
             "total_biosamples_available": total_count,
             "biosample_count": len(samples),
@@ -1883,7 +1883,6 @@ def get_samples_by_annotation(
             "search_criteria": {
                 "gene_function_id": gene_function_id,
                 "max_records": max_records,
-                "offset": offset
+                "offset": offset,
             },
         }
-
