@@ -347,6 +347,7 @@ def fetch_functional_annotation_records(
     filter_criteria: list[dict] = [],
     conditions: list[dict] = [],
     max_records: int | None = None,
+    offset: int = 0,
     base_url: str = "https://data.microbiomedata.org/api/biosample/search",
     verbose: bool = False,
 ) -> list[dict[str, Any]]:
@@ -379,6 +380,9 @@ def fetch_functional_annotation_records(
     else:
         url = base_url
 
+    if offset > 0:
+        url += f"&offset={offset}"
+
     if verbose:
         print(f"Fetching functional annotation records from: {url}")
         print(f"Payload: {json.dumps(payload, indent=2)}")
@@ -388,9 +392,10 @@ def fetch_functional_annotation_records(
         response.raise_for_status()
 
         data = response.json()
+        num_results = len(data.get("results", []))
 
         if verbose:
-            print(f"Retrieved {len(data.get("results", []))} functional annotation records")
+            print(f"Retrieved {num_results} functional annotation records")
 
         return data
 

@@ -18,7 +18,7 @@ from nmdc_mcp.tools import (
     get_entity_by_id,
     get_entity_by_id_with_projection,
     # get_random_collection_ids,  # Disabled - removes random sampling
-    # get_samples_by_annotation,  # Disabled - replaced by get_data_objects_by_pfam_domains  # noqa
+    get_samples_by_annotation,  
     get_samples_by_ecosystem,
     get_samples_in_elevation_range,
     get_samples_within_lat_lon_bounding_box,
@@ -162,6 +162,13 @@ mcp.tool(
     ),
 )
 
+mcp.tool(
+    get_samples_by_annotation,
+    description=(
+        "Use this tool to find biosamples based on specific annotation criteria. "
+        "Returns biosample IDs and metadata matching the provided annotations."
+    ),
+)
 
 def main() -> None:
     """Main entry point for the application."""

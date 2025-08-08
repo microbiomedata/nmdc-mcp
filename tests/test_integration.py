@@ -3,6 +3,7 @@ import unittest
 import pytest
 
 from nmdc_mcp.tools import (
+    get_samples_by_annotation,
     get_samples_by_ecosystem,
     get_samples_in_elevation_range,
     get_samples_within_lat_lon_bounding_box,
@@ -108,6 +109,27 @@ class TestNMDCIntegration(unittest.TestCase):
                 except Exception as e:
                     # If API times out or fails, skip this ecosystem
                     self.skipTest(f"API timeout/error for {ecosystem}: {str(e)}")
+
+    @pytest.mark.integration
+    def test_get_samples_by_annotation(self):
+        """Simple test for get_samples_by_annotation with basic validation."""
+        results = get_samples_by_annotation(
+            gene_function_id="KEGG.ORTHOLOGY:K00001", max_records=1
+        )
+        
+        # Basic validation
+        self.assertIsInstance(results, dict)    
+        self.assertIn("samples", results)
+        self.assertIn("total_biosamples_available", results)
+        self.assertIn("biosample_count", results)
+        
+        self.assertIsInstance(results["samples"], list)
+        self.assertIsInstance(results["samples"][0], dict)
+        self.assertIn("biosample_id", results["samples"][0])
+        self.assertIn("study_id", results["samples"][0])
+        self.assertIn("activities", results["samples"][0])
+        self.assertIsInstance(results["samples"][0]["activities"], list)
+
 
 
 if __name__ == "__main__":

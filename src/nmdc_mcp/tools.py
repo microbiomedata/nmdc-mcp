@@ -1709,3 +1709,181 @@ def fetch_and_filter_gff_by_pfam_domains(
                 "sample_bytes": sample_bytes,
             },
         }
+
+def get_samples_by_annotation(
+    gene_function_id: str,
+    max_records: int | None = None,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    """
+    Find biosamples that have specific functional annotations (gene functions).
+
+    **IMPORTANT**: This returns BIOSAMPLE records (not functional annotation records)
+    that contain the specified gene function. Each biosample includes detailed
+    environmental metadata, omics processing data, and analysis results.
+
+    This tool searches biosamples by functional annotation criteria and returns
+    complete biosample information. Use max_records to limit response size as
+    each biosample can be very large (includes all omics data).
+
+    Args:
+        gene_function_id (str): The gene function ID to search for
+            (e.g., "KEGG.ORTHOLOGY:K00001", "COG:COG0001", "PFAM:PF00001",
+            "GO:GO0000001")
+        max_records (int | None): Maximum number of biosample records to return
+            Recommend keeping this small (≤10) as each record can be very large
+
+    Returns:
+        List[Dict[str, Any]]: List of BIOSAMPLE records that have the requested
+            functional annotation. Each record contains complete biosample metadata,
+            environmental data, and associated omics processing information.
+
+    Examples:
+        - get_samples_by_annotation("KEGG.ORTHOLOGY:K00001", max_records=5)
+        - get_samples_by_annotation("COG:COG0001", max_records=3)
+
+    **Expected workflow**: Use this tool directly with a specific gene function ID.
+    Do NOT explore collections first - this tool handles the search internally.
+    """
+    try:
+        # Validate input
+        if not gene_function_id or not gene_function_id.strip():
+            return [
+                {"error": "gene_function_id parameter is required and cannot be empty"}
+            ]
+
+        gene_function_id = gene_function_id.strip()
+
+        # Determine table based on gene function ID prefix
+        if gene_function_id.startswith("KEGG.ORTHOLOGY:"):
+            table = "kegg_function"
+        elif gene_function_id.startswith("COG:"):
+            table = "cog_function"
+        elif gene_function_id.startswith("PFAM:"):
+            table = "pfam_function"
+        elif gene_function_id.startswith("GO:"):
+            table = "go_function"
+        else:
+            return [
+                {
+                    "error": (
+                        "Unsupported gene function ID prefix. Supported prefixes:"
+                        " KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"
+                    )
+                }
+            ]
+
+        # Build filter criteria with new format
+        conditions = [{
+            "op": "==",
+            "field": "id",
+            "value": gene_function_id,
+            "table": table,
+        }]
+
+     
+        # Fetch records with essential fields only to avoid large responses
+        data = fetch_functional_annotation_records(
+            conditions=conditions,
+            max_records=max_records,
+            offset=offset
+        )
+
+        total_count = data.get("count", 0)
+        biosample_records = data.get("results", [])
+
+        if not biosample_records:
+            return {
+                "search_criteria": {
+                    "gene_function_id": gene_function_id,
+                    "max_records": max_records,
+                    "offset": offset,
+                },
+                "total_biosamples_available": total_count,
+                "biosample_count": 0,
+                "samples": [],
+                "message": (
+                    "No biosamples found containing"
+                )
+            }
+
+        # Process each biosample to extract data objects in the target format
+        samples = []
+
+        for biosample in biosample_records:
+            biosample_id = biosample.get("id", "")
+            study_id = biosample.get("study_id", "")
+
+            # Extract activities and their outputs from omics_processing
+            activities = []
+            omics_processing = biosample.get("omics_processing", [])
+
+            for omics in omics_processing:
+                # Extract omics_data entries as activities
+                omics_data_list = omics.get("omics_data", [])
+
+                for omics_data in omics_data_list:
+                    activity = {
+                        "activity_id": omics_data.get("id"),
+                        "activity_type": omics_data.get("type"),
+                        "analysis_category": omics_data.get(
+                            "metaproteomics_analysis_category"
+                        ),
+                        "informed_by": [
+                            {
+                                "id": informed.get("id"),
+                                "type": informed.get("annotations", {}).get("type"),
+                                "omics_type": informed.get("annotations", {}).get(
+                                    "omics_type"
+                                ),
+                            }
+                            for informed in omics_data.get("was_informed_by", [])
+                        ],
+                        "outputs": [
+                            {
+                                "id": output.get("id"),
+                                "name": output.get("name"),
+                                "description": output.get("description"),
+                                "file_type": output.get("file_type"),
+                                "file_type_description": output.get(
+                                    "file_type_description"
+                                ),
+                                "file_size_bytes": output.get("file_size_bytes"),
+                                "md5_checksum": output.get("md5_checksum"),
+                                "url": output.get("url"),
+                                "downloads": output.get("downloads"),
+                                "selected": output.get("selected"),
+                            }
+                            for output in omics_data.get("outputs", [])
+                        ],
+                    }
+                    activities.append(activity)
+
+            sample_record = {
+                "biosample_id": biosample_id,
+                "study_id": study_id,
+                "activities": activities,
+            }
+            samples.append(sample_record)
+
+        return {
+            "search_criteria": {
+                "gene_function_id": gene_function_id,
+                "max_records": max_records,
+                "offset": offset
+            },
+            "total_biosamples_available": total_count,
+            "biosample_count": len(samples),
+            "samples": samples,
+        }
+
+    except Exception as e:
+        return {
+            "error": f"Failed to fetch annotation records for '{gene_function_id}': {str(e)}",
+            "search_criteria": {
+                "gene_function_id": gene_function_id,
+                "max_records": max_records,
+                "offset": offset
+            },
+        }
+
