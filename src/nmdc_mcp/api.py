@@ -8,10 +8,10 @@
 ################################################################################
 import json
 from typing import Any
-
+import os
 import requests
 
-from .constants import DEFAULT_PAGE_SIZE
+from .constants import DEFAULT_PAGE_SIZE, BASE_URL
 
 
 def fetch_nmdc_collection_records_paged(
@@ -453,3 +453,34 @@ def fetch_study_data_objects(
         if verbose:
             print(f"Error fetching study data objects: {str(e)}")
         raise
+
+def run_aggregation_queries(query:dict, token:str, allow_broken_refs:bool=False)-> dict:
+    """
+    Run a MongoDB compatible aggregation query via the NMDC API. The endpoint preforms find, aggregate, update, delete, and getMore commands for users that have adequate permissions.
+
+    Args:
+        query: a dictionary that contains the MongoDB compatible query. 
+        token: bearer token to authorize the request.
+        allow_broken_refs: boolean to determine if the query being run should allow for broken references in the database.
+
+    Returns:
+        The API response
+
+    Raises:
+        requests.HTTPError: If the API request fails
+    """
+    if os.getenv("TOKEN"):
+        token = os.getenv("TOKEN")
+    else:
+        token = token
+    params = {"allow_broken_refs": allow_broken_refs}
+
+    url = f"{BASE_URL}/queries:run"
+    try:
+        response = requests.post(url, params=params, data=query)
+        response.raise_for_status()
+        return response.json()
+
+    except requests.exceptions.RequestException as e:
+        print("An error calling the API occured:\n", e)
+    
