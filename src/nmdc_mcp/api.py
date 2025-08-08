@@ -344,10 +344,10 @@ def fetch_nmdc_biosample_records_paged(
 
 
 def fetch_functional_annotation_records(
-    filter_criteria: dict[str, Any] | None = None,
+    filter_criteria: list[dict] = [],
+    conditions: list[dict] = [],
     max_records: int | None = None,
     base_url: str = "https://data.microbiomedata.org/api/biosample/search",
-    projection: list[str] | None = None,
     verbose: bool = False,
 ) -> list[dict[str, Any]]:
     """
@@ -358,42 +358,21 @@ def fetch_functional_annotation_records(
     Uses projection to limit returned fields and avoid large response sizes.
 
     Args:
-        filter_criteria: Filter criteria for the search (e.g., conditions array)
+        filter_criteria: data object filter criteria for the search
+        conditions: list of conditions for which to search under
         max_records: Maximum number of records to retrieve
         base_url: Base URL for the biosample search API
-        projection: List of fields to include in response. If None, uses default fields
         verbose: Enable verbose logging
 
     Returns:
-        List of dictionaries containing biosample records with specified fields only
+        List of dictionaries containing biosample records
 
     Raises:
         requests.HTTPError: If the API request fails
     """
-    # Default projection if none provided - essential fields only to avoid large
-    # responses
-    if projection is None:
-        projection = [
-            "id",
-            "name",
-            "description",
-            "study_id",
-            "ecosystem",
-            "ecosystem_category",
-            "ecosystem_type",
-            "ecosystem_subtype",
-            "env_broad_scale",
-            "env_local_scale",
-            "env_medium",
-            "latitude",
-            "longitude",
-            "collection_date",
-        ]
 
-    # Prepare the request payload with projection to limit returned fields
-    payload: dict[str, Any] = {"data_object_filter": [], "projection": projection}
-    if filter_criteria:
-        payload.update(filter_criteria)
+    # Prepare the request payload
+    payload: dict[str, Any] = {"data_object_filter": filter_criteria, "conditions": conditions}
 
     if max_records is not None:
         url = f"{base_url}?limit={max_records}"
@@ -410,13 +389,10 @@ def fetch_functional_annotation_records(
 
         data = response.json()
 
-        # Extract records from response
-        records = data if isinstance(data, list) else data.get("results", [])
-
         if verbose:
-            print(f"Retrieved {len(records)} functional annotation records")
+            print(f"Retrieved {len(data.get("results", []))} functional annotation records")
 
-        return records
+        return data
 
     except requests.exceptions.RequestException as e:
         if verbose:

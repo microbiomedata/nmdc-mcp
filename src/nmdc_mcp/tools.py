@@ -178,6 +178,8 @@ def get_data_objects_by_pfam_domains(
     output file metadata.
 
     Args:
+        # TODO - why does the description ask for no PFAM prefix, but the code puts the PFAM prefix in?
+
         pfam_domain_ids (list[str]): List of PFAM domain identifiers WITHOUT the
             "PFAM:" prefix. Examples: ["PF00005", "PF00072"] for ABC transporter
             and response regulator domains.
@@ -245,18 +247,8 @@ def get_data_objects_by_pfam_domains(
                 {"op": "==", "field": "id", "value": pfam_id, "table": "pfam_function"}
             )
 
-        # Make the API call directly to get both count and results
-
-        import requests
-
-        base_url = "https://data.microbiomedata.org/api/biosample/search"
-        url = f"{base_url}?limit={biosample_limit}"
-
-        payload = {"conditions": conditions}
-
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
-        data = response.json()
+        # Make the API call
+        data = fetch_functional_annotation_records(conditions=conditions, max_records=biosample_limit)
 
         total_count = data.get("count", 0)
         biosample_records = data.get("results", [])
