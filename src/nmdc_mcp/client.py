@@ -17,17 +17,18 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-API_KEY = os.getenv("AI_INCUBATOR_API_KEY")
-model = "claude-3-7-sonnet-20250219-v1-project"
-BASE_URL = "https://ai-incubator-api.pnnl.gov"
+API_KEY = os.getenv("OPENAI_API_KEY")
+model = os.getenv("MODEL", "gpt-4o")
+BASE_URL = os.getenv("BASE_URL", "https://api.openai.com/v1")
 client = openai.OpenAI(api_key=API_KEY, base_url=BASE_URL)
-
 
 class MCPClient:
     def __init__(self):
         # Initialize session and client objects
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
+        if API_KEY == None:
+            raise Exception ("API_KEY must be set in .env file.")
         self.client = AsyncOpenAI(base_url=BASE_URL, api_key=API_KEY)
         self.messages = []
         self.tool_to_session = {}
