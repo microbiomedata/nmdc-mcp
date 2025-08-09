@@ -1,4 +1,4 @@
-# Aggregation for annotation -> dobj
+// Aggregation for annotation -> dobj
 db.getCollection("functional_annotation_agg").aggregate([
   // Match documents with gene_function_id in the list
   {

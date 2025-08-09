@@ -114,13 +114,12 @@ class TestNMDCIntegration(unittest.TestCase):
     def test_get_samples_by_annotation(self):
         """Simple test for get_samples_by_annotation with basic validation."""
         results = get_samples_by_annotation(
-            gene_function_id="KEGG.ORTHOLOGY:K00001", max_records=1
+            gene_function_ids=["KEGG.ORTHOLOGY:K00001"], max_records=1
         )
 
         # Basic validation
         self.assertIsInstance(results, dict)
         self.assertIn("samples", results)
-        self.assertIn("total_biosamples_available", results)
         self.assertIn("biosample_count", results)
 
         self.assertIsInstance(results["samples"], list)

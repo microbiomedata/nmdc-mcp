@@ -346,7 +346,7 @@ def fetch_nmdc_biosample_records_paged(
 def fetch_functional_annotation_records(
     filter_criteria: list[dict] = [],
     conditions: list[dict] = [],
-    max_records: int | None = None,
+    limit: int | None = None,
     offset: int = 0,
     base_url: str = "https://data.microbiomedata.org/api/biosample/search",
     verbose: bool = False,
@@ -356,12 +356,11 @@ def fetch_functional_annotation_records(
 
     This function queries the data.microbiomedata.org/api/biosample/search endpoint
     to retrieve biosample records that match functional annotation criteria.
-    Uses projection to limit returned fields and avoid large response sizes.
 
     Args:
         filter_criteria: data object filter criteria for the search
         conditions: list of conditions for which to search under
-        max_records: Maximum number of records to retrieve
+        limit: Maximum number of records to retrieve
         base_url: Base URL for the biosample search API
         verbose: Enable verbose logging
 
@@ -378,8 +377,8 @@ def fetch_functional_annotation_records(
         "conditions": conditions,
     }
 
-    if max_records is not None:
-        url = f"{base_url}?limit={max_records}"
+    if limit is not None:
+        url = f"{base_url}?limit={limit}"
     else:
         url = base_url
 
