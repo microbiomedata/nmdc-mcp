@@ -180,7 +180,8 @@ mcp.tool(
         "to return. Required formats: PFAM domains use 'PFAM:PF04183', KEGG use "
         "'KEGG.ORTHOLOGY:K00001', COG use 'COG:COG0001', GO use 'GO:GO0000001'. "
         "When users want genomic locations of domains, use this first to find samples, "
-        "then use fetch_and_filter_gff_by_pfam_domains with a GFF data_object_id from the results."
+        "then use fetch_and_filter_gff_by_pfam_domains with a GFF data_object_id "
+        "from the results."
     ),
 )
 
