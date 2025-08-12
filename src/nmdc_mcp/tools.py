@@ -8,6 +8,8 @@ import random
 from datetime import datetime
 from typing import Any
 
+import requests
+
 from .api import (
     fetch_functional_annotation_records,
     fetch_nmdc_biosample_records_paged,
@@ -17,7 +19,6 @@ from .api import (
     fetch_nmdc_entities_by_ids_with_projection,
     fetch_nmdc_entity_by_id,
     fetch_nmdc_entity_by_id_with_projection,
-    fetch_study_data_objects,
 )
 from .constants import (
     DEFAULT_PAGE_SIZE,
@@ -28,6 +29,9 @@ from .constants import (
     MIN_RANDOM_FETCH_COUNT,
     RANDOM_FETCH_MULTIPLIER,
 )
+
+# Create logger for this module
+logger = logging.getLogger(__name__)
 
 
 def clean_collection_date(record: dict[str, Any]) -> None:
@@ -162,230 +166,189 @@ def get_samples_by_ecosystem(
     return records
 
 
-def get_samples_by_annotation(
-    input_id: str,
-    data_object_type_filter: str | None = None,
-    max_records: int | None = None,
-) -> list[dict[str, Any]]:
+def get_data_objects_by_pfam_domains(
+    pfam_domain_ids: list[str],
+    biosample_limit: int = 100,
+) -> dict[str, Any]:
     """
-    Find biosamples with functional annotations OR get data objects for a specific
-    biosample.
+    Get data objects from biosamples containing ALL specified PFAM domains.
 
-    This function handles two main use cases:
-    1. Gene function search: Find biosamples that have specific functional annotations
-    2. Biosample data objects: Get data objects (like GFF files) for a specific
-       biosample
-
-    The function automatically detects the input type and handles the request
-    accordingly.
+    This tool searches the NMDC database for biosamples that contain all the specified
+    PFAM domains (using AND logic) and returns a structured response similar to the
+    bacterial-pfam-clean.json format, with minimal activity information and rich
+    output file metadata.
 
     Args:
-        input_id (str): Either a gene function ID (e.g., "KEGG.ORTHOLOGY:K00001",
-            "COG:COG0001", "PFAM:PF00001", "GO:GO0000001") OR a biosample ID
-            (e.g., "nmdc:bsm-11-abc123")
-        data_object_type_filter (str, optional): Filter data objects by type when
-            input_id is a biosample. Examples: "Functional Annotation GFF",
-            "Assembly Contigs", "KEGG Orthology"
-        max_records (int | None): Maximum number of records to return
+        # TODO - why does the description ask for no PFAM prefix, but the code
+        # puts the PFAM prefix in?
+
+        pfam_domain_ids (list[str]): List of PFAM domain identifiers WITHOUT the
+            "PFAM:" prefix. Examples: ["PF00005", "PF00072"] for ABC transporter
+            and response regulator domains.
+        biosample_limit (int): Maximum number of biosamples to return. Default is 100.
+            Higher values may result in larger responses and longer processing times.
 
     Returns:
-        List[Dict[str, Any]]:
-        - For gene function searches: List of BIOSAMPLE records with the annotation
-        - For biosample searches: List of data objects associated with the biosample
+        dict[str, Any]: Structured response containing:
+            - search_criteria: Details about the domains searched and limits applied
+            - biosample_count: Total biosamples available matching the criteria
+            - samples: List of biosample records with activities and data objects
 
     Examples:
-        - get_samples_by_annotation("KEGG.ORTHOLOGY:K00001", max_records=5)
-        - get_samples_by_annotation("nmdc:bsm-11-abc123", "Functional Annotation GFF")
-        - get_samples_by_annotation("nmdc:bsm-11-abc123")  # All data objects
+        # Search for biosamples with ABC transporter domain
+        get_data_objects_by_pfam_domains(["PF00005"])
+
+        # Search for samples with both ABC transporter and response regulator
+        get_data_objects_by_pfam_domains(["PF00005", "PF00072"], biosample_limit=50)
+
+        # Search for samples with multiple metabolic domains
+        get_data_objects_by_pfam_domains(["PF00001", "PF00106", "PF00107"])
     """
     try:
         # Validate input
-        if not input_id or not input_id.strip():
-            return [{"error": "input_id parameter is required and cannot be empty"}]
+        if not pfam_domain_ids:
+            return {
+                "error": "pfam_domain_ids parameter is required and cannot be empty",
+                "search_criteria": {
+                    "pfam_domains": pfam_domain_ids,
+                    "biosample_limit": biosample_limit,
+                },
+            }
 
-        input_id = input_id.strip()
+        if not isinstance(pfam_domain_ids, list):
+            return {
+                "error": "pfam_domain_ids must be a list of PFAM domain identifiers",
+                "search_criteria": {
+                    "pfam_domains": pfam_domain_ids,
+                    "biosample_limit": biosample_limit,
+                },
+            }
 
-        # Determine if input is a biosample ID or gene function ID
-        if input_id.startswith("nmdc:bsm-"):
-            # Handle biosample ID - get data objects via runtime API
-            return _get_data_objects_for_biosample(
-                input_id, data_object_type_filter, max_records
+        # Validate and add PFAM: prefix to domain IDs if not present
+        processed_pfam_ids = []
+        for domain_id in pfam_domain_ids:
+            if not isinstance(domain_id, str):
+                return {
+                    "error": f"Invalid PFAM domain ID: {domain_id}. Must be a string.",
+                    "search_criteria": {
+                        "pfam_domains": pfam_domain_ids,
+                        "biosample_limit": biosample_limit,
+                    },
+                }
+
+            # Add PFAM: prefix if not present
+            if domain_id.startswith("PFAM:"):
+                processed_pfam_ids.append(domain_id)
+            else:
+                processed_pfam_ids.append(f"PFAM:{domain_id}")
+
+        # Build filter criteria with AND logic for multiple PFAM domains
+        conditions = []
+        for pfam_id in processed_pfam_ids:
+            conditions.append(
+                {"op": "==", "field": "id", "value": pfam_id, "table": "pfam_function"}
             )
 
-        # Handle gene function ID - search for biosamples with that annotation
-        return _get_biosamples_by_gene_function(input_id, max_records)
+        # Make the API call
+        data = fetch_functional_annotation_records(
+            conditions=conditions, limit=biosample_limit
+        )
+
+        total_count = data.get("count", 0)
+        biosample_records = data.get("results", [])
+
+        if not biosample_records:
+            return {
+                "search_criteria": {
+                    "pfam_domains": pfam_domain_ids,
+                    "biosample_limit": biosample_limit,
+                },
+                "total_biosamples_available": total_count,
+                "biosample_count": 0,
+                "samples": [],
+                "message": (
+                    "No biosamples found containing all PFAM domains: "
+                    f"{', '.join(processed_pfam_ids)}"
+                ),
+            }
+
+        # Process each biosample to extract data objects in the target format
+        samples = []
+
+        for biosample in biosample_records:
+            biosample_id = biosample.get("id", "")
+            study_id = biosample.get("study_id", "")
+
+            # Extract activities and their outputs from omics_processing
+            activities = []
+            omics_processing = biosample.get("omics_processing", [])
+
+            for omics in omics_processing:
+                # Extract omics_data entries as activities
+                omics_data_list = omics.get("omics_data", [])
+
+                for omics_data in omics_data_list:
+                    activity = {
+                        "activity_id": omics_data.get("id"),
+                        "activity_type": omics_data.get("type"),
+                        "analysis_category": omics_data.get(
+                            "metaproteomics_analysis_category"
+                        ),
+                        "informed_by": [
+                            {
+                                "id": informed.get("id"),
+                                "type": informed.get("annotations", {}).get("type"),
+                                "omics_type": informed.get("annotations", {}).get(
+                                    "omics_type"
+                                ),
+                            }
+                            for informed in omics_data.get("was_informed_by", [])
+                        ],
+                        "outputs": [
+                            {
+                                "id": output.get("id"),
+                                "name": output.get("name"),
+                                "description": output.get("description"),
+                                "file_type": output.get("file_type"),
+                                "file_type_description": output.get(
+                                    "file_type_description"
+                                ),
+                                "file_size_bytes": output.get("file_size_bytes"),
+                                "md5_checksum": output.get("md5_checksum"),
+                                "url": output.get("url"),
+                                "downloads": output.get("downloads"),
+                                "selected": output.get("selected"),
+                            }
+                            for output in omics_data.get("outputs", [])
+                        ],
+                    }
+                    activities.append(activity)
+
+            sample_record = {
+                "biosample_id": biosample_id,
+                "study_id": study_id,
+                "activities": activities,
+            }
+            samples.append(sample_record)
+
+        return {
+            "search_criteria": {
+                "pfam_domains": pfam_domain_ids,
+                "biosample_limit": biosample_limit,
+            },
+            "total_biosamples_available": total_count,
+            "biosample_count": len(samples),
+            "samples": samples,
+        }
 
     except Exception as e:
-        return [{"error": f"Failed to process request for '{input_id}': {str(e)}"}]
-
-
-def _get_biosamples_by_gene_function(
-    gene_function_id: str, max_records: int | None = None
-) -> list[dict[str, Any]]:
-    """
-    Internal function to find biosamples that have specific functional annotations.
-    """
-    # Determine table based on gene function ID prefix
-    if gene_function_id.startswith("KEGG.ORTHOLOGY:"):
-        table = "kegg_function"
-    elif gene_function_id.startswith("COG:"):
-        table = "cog_function"
-    elif gene_function_id.startswith("PFAM:"):
-        table = "pfam_function"
-    elif gene_function_id.startswith("GO:"):
-        table = "go_function"
-    else:
-        return [
-            {
-                "error": (
-                    "Unsupported gene function ID prefix. Supported prefixes: "
-                    "KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"
-                )
-            }
-        ]
-
-    # Build filter criteria
-    filter_criteria = {
-        "conditions": [
-            {
-                "op": "==",
-                "field": "id",
-                "value": gene_function_id,
-                "table": table,
-            }
-        ]
-    }
-
-    # Fetch records with essential fields only to avoid large responses
-    records = fetch_functional_annotation_records(
-        filter_criteria=filter_criteria,
-        max_records=max_records,
-        projection=None,  # Uses default essential fields projection
-        verbose=True,
-    )
-
-    if not records:
-        return [
-            {"message": (f"No biosamples found with gene function: {gene_function_id}")}
-        ]
-
-    return records
-
-
-def _get_data_objects_for_biosample(
-    biosample_id: str,
-    data_object_type_filter: str | None = None,
-    max_records: int | None = None,
-) -> list[dict[str, Any]]:
-    """
-    Internal function to get data objects for a specific biosample using runtime API.
-    """
-    # First, get the biosample to extract associated study IDs
-    biosample_data = get_entity_by_id_with_projection(
-        entity_id=biosample_id,
-        collection="biosample_set",
-        projection=["id", "name", "associated_studies"],
-    )
-
-    if "error" in biosample_data:
-        return [
-            {
-                "error": (
-                    f"Biosample {biosample_id} not found: "
-                    f"{biosample_data.get('error')}"
-                )
-            }
-        ]
-
-    associated_studies = biosample_data.get("associated_studies", [])
-    if not associated_studies:
-        return [
-            {"message": f"No associated studies found for biosample {biosample_id}"}
-        ]
-
-    # Get data objects for each associated study
-    all_data_objects = []
-    biosample_data_objects = []
-
-    for study_id in associated_studies:
-        try:
-            study_data_objects = fetch_study_data_objects(study_id, verbose=True)
-
-            # Find data objects for our specific biosample
-            for biosample_entry in study_data_objects:
-                if biosample_entry.get("biosample_id") == biosample_id:
-                    biosample_data_objects.extend(
-                        biosample_entry.get("data_objects", [])
-                    )
-                    break
-
-            all_data_objects.extend(study_data_objects)
-
-        except Exception as e:
-            print(f"Warning: Failed to fetch data objects for study {study_id}: {e}")
-            continue
-
-    if not biosample_data_objects:
-        return [
-            {
-                "message": f"No data objects found for biosample {biosample_id}",
-                "biosample_id": biosample_id,
-                "biosample_name": biosample_data.get("name", ""),
-                "associated_studies": associated_studies,
-            }
-        ]
-
-    # Filter by data object type if specified
-    if data_object_type_filter:
-        filtered_objects = [
-            obj
-            for obj in biosample_data_objects
-            if data_object_type_filter.lower()
-            in obj.get("data_object_type", "").lower()
-        ]
-
-        if not filtered_objects:
-            available_types = list(
-                {
-                    obj.get("data_object_type", "Unknown")
-                    for obj in biosample_data_objects
-                }
-            )
-            return [
-                {
-                    "message": (
-                        f"No data objects of type '{data_object_type_filter}' found "
-                        f"for biosample {biosample_id}"
-                    ),
-                    "biosample_id": biosample_id,
-                    "biosample_name": biosample_data.get("name", ""),
-                    "available_data_object_types": sorted(available_types),
-                    "total_data_objects": len(biosample_data_objects),
-                }
-            ]
-
-        biosample_data_objects = filtered_objects
-
-    # Apply max_records limit if specified
-    if max_records and len(biosample_data_objects) > max_records:
-        biosample_data_objects = biosample_data_objects[:max_records]
-
-    # Format the response
-    result = {
-        "biosample_id": biosample_id,
-        "biosample_name": biosample_data.get("name", ""),
-        "associated_studies": associated_studies,
-        "data_objects_count": len(biosample_data_objects),
-        "data_objects": biosample_data_objects,
-    }
-
-    if data_object_type_filter:
-        result["filtered_by_type"] = data_object_type_filter
-
-    if max_records and len(biosample_data_objects) == max_records:
-        result["note"] = f"Results limited to {max_records} data objects"
-
-    return [result]
+        return {
+            "error": f"Failed to get data objects by PFAM domains: {str(e)}",
+            "search_criteria": {
+                "pfam_domains": pfam_domain_ids,
+                "biosample_limit": biosample_limit,
+            },
+        }
 
 
 def get_entity_by_id(entity_id: str) -> dict[str, Any]:
@@ -1509,4 +1472,458 @@ def search_studies_by_doi_criteria(
                 "doi_category": doi_category,
                 "doi_value_contains": doi_value_contains,
             },
+        }
+
+
+def fetch_and_filter_gff_by_pfam_domains(
+    data_object_id: str,
+    pfam_domain_ids: list[str],
+    max_rows: int = 1000,
+    sample_bytes: int | None = None,
+) -> dict[str, Any]:
+    """
+    Fetch data object metadata and filter GFF content for specified PFAM domains.
+
+    This tool takes a data object ID, resolves it to a download URL via the
+    NMDC runtime API,
+    downloads the GFF file content (with optional byte limiting), and filters
+    for rows
+    containing any of the specified PFAM domains.
+
+    Args:
+        data_object_id (str): NMDC data object ID (e.g., "nmdc:dobj-11-abc123")
+        pfam_domain_ids (List[str]): List of PFAM domain identifiers to search
+            for.
+            Examples: ["PF04183", "PF06276"], ["PF00005", "PF00072"]
+            These will be matched case-insensitively in GFF annotation fields.
+        max_rows (int): Maximum number of matching rows to return (default:
+            1000).
+            This prevents context overflow from very large result sets.
+        sample_bytes (int, optional): Maximum bytes to download from GFF file.
+            If None (default), downloads the entire file. Use this to limit download
+            size for very large files when only a sample is needed.
+
+    Returns:
+        Dict[str, Any]: Structured response containing:
+            - data_object_metadata: Complete metadata from runtime API including
+              download URL
+            - search_criteria: Details about domains searched and limits applied
+            - file_info: Information about the downloaded content
+            - matching_annotations: Filtered GFF rows containing the PFAM
+              domains
+            - summary: Statistics about processing and matches found
+
+    Examples:
+        # Basic PFAM filtering for a data object
+        fetch_and_filter_gff_by_pfam_domains(
+            "nmdc:dobj-11-abc123",
+            ["PF04183", "PF06276"]
+        )
+
+        # Limited sampling with specific row limit
+        fetch_and_filter_gff_by_pfam_domains(
+            "nmdc:dobj-11-def456",
+            ["PF00005"],
+            max_rows=500,
+            sample_bytes=1000000  # 1MB sample
+        )
+    """
+    try:
+        # Validate inputs
+        if not data_object_id:
+            return {
+                "error": ("data_object_id parameter is required and cannot be empty"),
+                "search_criteria": {
+                    "data_object_id": data_object_id,
+                    "pfam_domains": pfam_domain_ids,
+                    "max_rows": max_rows,
+                    "sample_bytes": sample_bytes,
+                },
+            }
+
+        if not pfam_domain_ids:
+            return {
+                "error": ("pfam_domain_ids parameter is required and cannot be empty"),
+                "search_criteria": {
+                    "data_object_id": data_object_id,
+                    "pfam_domains": pfam_domain_ids,
+                    "max_rows": max_rows,
+                    "sample_bytes": sample_bytes,
+                },
+            }
+
+        # Step 1: Fetch data object metadata from runtime API
+        runtime_api_url = (
+            f"https://api.microbiomedata.org/data_objects/"
+            f"{data_object_id.replace(':', '%3A')}"
+        )
+
+        logger.info(f"Fetching metadata for data object: {data_object_id}")
+        metadata_response = requests.get(
+            runtime_api_url, headers={"Accept": "application/json"}
+        )
+        metadata_response.raise_for_status()
+
+        data_object_metadata = metadata_response.json()
+        download_url = data_object_metadata.get("url")
+
+        if not download_url:
+            return {
+                "error": "No download URL found in data object metadata",
+                "data_object_metadata": data_object_metadata,
+                "search_criteria": {
+                    "data_object_id": data_object_id,
+                    "pfam_domains": pfam_domain_ids,
+                    "max_rows": max_rows,
+                    "sample_bytes": sample_bytes,
+                },
+            }
+
+        # Step 2: Download GFF content (with optional byte limiting)
+        logger.info(f"Downloading GFF content from: {download_url}")
+        headers = {}
+        if sample_bytes is not None and sample_bytes > 0:
+            headers["Range"] = f"bytes=0-{sample_bytes-1}"
+
+        content_response = requests.get(download_url, headers=headers, timeout=30)
+        content_response.raise_for_status()
+
+        # Get actual bytes downloaded
+        content_length = len(content_response.content)
+        was_truncated = (
+            sample_bytes is not None
+            and sample_bytes > 0
+            and content_length >= sample_bytes
+        )
+
+        # Step 3: Parse and filter GFF content
+        content = content_response.text
+        lines = content.strip().split("\n")
+
+        # Normalize PFAM domain IDs for case-insensitive matching
+        normalized_pfams = [pfam.upper() for pfam in pfam_domain_ids]
+
+        matching_annotations = []
+        total_rows = 0
+
+        for line in lines:
+            # Skip empty lines and comments
+            if not line.strip() or line.startswith("#"):
+                continue
+
+            total_rows += 1
+
+            # Check if line contains any PFAM domain (case-insensitive)
+            line_upper = line.upper()
+            if any(pfam in line_upper for pfam in normalized_pfams):
+                # Parse the GFF line into components
+                try:
+                    parts = line.split("\t")
+                    if len(parts) >= 9:  # Standard GFF format has 9 columns
+                        annotation = {
+                            "seqname": parts[0],
+                            "source": parts[1],
+                            "feature": parts[2],
+                            "start": parts[3],
+                            "end": parts[4],
+                            "score": parts[5],
+                            "strand": parts[6],
+                            "frame": parts[7],
+                            "attributes": parts[8],
+                            "raw_line": line,
+                        }
+                        matching_annotations.append(annotation)
+                    else:
+                        # For non-standard format, just store the raw line
+                        matching_annotations.append({"raw_line": line})
+                except Exception as parse_error:
+                    # If parsing fails, store raw line with error note
+                    matching_annotations.append(
+                        {"raw_line": line, "parse_error": str(parse_error)}
+                    )
+
+                # Limit rows to prevent context overflow
+                if len(matching_annotations) >= max_rows:
+                    break
+
+        # Build response
+        file_info = {
+            "download_url": download_url,
+            "content_length_bytes": content_length,
+            "sample_bytes_requested": sample_bytes,
+            "was_truncated": was_truncated,
+            "total_rows_processed": total_rows,
+            "matching_rows_found": len(matching_annotations),
+            "max_rows_applied": len(matching_annotations) >= max_rows,
+        }
+
+        summary = {
+            "data_object_id": data_object_id,
+            "pfam_domains_searched": pfam_domain_ids,
+            "total_matching_annotations": len(matching_annotations),
+            "file_size_bytes": content_length,
+            "processing_limits": {
+                "max_rows": max_rows,
+                "sample_bytes": sample_bytes,
+            },
+        }
+
+        result = {
+            "data_object_metadata": data_object_metadata,
+            "search_criteria": {
+                "data_object_id": data_object_id,
+                "pfam_domains": pfam_domain_ids,
+                "max_rows": max_rows,
+                "sample_bytes": sample_bytes,
+            },
+            "file_info": file_info,
+            "matching_annotations": matching_annotations,
+            "summary": summary,
+        }
+
+        if matching_annotations:
+            result["note"] = (
+                f"Successfully processed data object {data_object_id} and found "
+                f"{len(matching_annotations)} annotations containing PFAM domains: "
+                f"{', '.join(pfam_domain_ids)}"
+            )
+        else:
+            result["note"] = (
+                f"Processed data object {data_object_id} but found no annotations "
+                f"containing PFAM domains: {', '.join(pfam_domain_ids)}"
+            )
+
+        return result
+
+    except requests.exceptions.RequestException as e:
+        return {
+            "error": f"Failed to fetch data or download content: {str(e)}",
+            "search_criteria": {
+                "data_object_id": data_object_id,
+                "pfam_domains": pfam_domain_ids,
+                "max_rows": max_rows,
+                "sample_bytes": sample_bytes,
+            },
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to process GFF content: {str(e)}",
+            "search_criteria": {
+                "data_object_id": data_object_id,
+                "pfam_domains": pfam_domain_ids,
+                "max_rows": max_rows,
+                "sample_bytes": sample_bytes,
+            },
+        }
+
+
+def get_samples_by_annotation(
+    gene_function_ids: list[str],
+    max_records: int | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """
+    Find biosamples that have specific functional annotations (gene functions).
+
+    **IMPORTANT**: This returns BIOSAMPLE records (not functional annotation records)
+    that contain the specified gene function. Each biosample includes detailed
+    environmental metadata, omics processing data, and analysis results.
+
+    This tool searches biosamples by functional annotation criteria and returns
+    complete biosample information. Use max_records to limit response size as
+    each biosample can be very large (includes all omics data).
+
+    Args:
+        gene_function_ids (list[str]): The gene function IDs to search for
+            (e.g., ["KEGG.ORTHOLOGY:K00001", "COG:COG0001", "PFAM:PF00001",
+            "GO:GO0000001"])
+        max_records (int | None): Maximum number of biosample records to return
+            Recommend keeping this small (≤10) as each record can be very large
+        offset (int): Number of records to skip (for pagination). Default is 0.
+
+    Returns:
+        List[Dict[str, Any]]: List of BIOSAMPLE records that have the requested
+            functional annotation. Each record contains complete biosample metadata,
+            environmental data, and associated omics processing information.
+
+    Examples:
+        - get_samples_by_annotation(["KEGG.ORTHOLOGY:K00001"], max_records=5)
+        - get_samples_by_annotation(["PFAM:PF00002", "PFAM:PF00001"], max_records=3)
+
+    **Expected workflow**: Use this tool directly with a specific gene function ID.
+    Do NOT explore collections first - this tool handles the search internally.
+    """
+
+    # If we are only looking for a single annotation, we can optimize the query
+    single_annotation = len(gene_function_ids) == 1
+    logging.info(f"Single annotation optimization: {single_annotation}")
+
+    try:
+        tmp_sample_ids = []
+        pass_count = 0
+        for gene_function_id in gene_function_ids:
+            # returned_samples starts as an empty list each pass
+            # On first pass it will add all samples.
+            # In subsequent passes, it will only add samples that match previous passes.
+            returned_samples = []
+            gene_function_id = gene_function_id.strip()
+
+            # Determine table based on gene function ID prefix
+            if gene_function_id.startswith("KEGG.ORTHOLOGY:"):
+                table = "kegg_function"
+            elif gene_function_id.startswith("COG:"):
+                table = "cog_function"
+            elif gene_function_id.startswith("PFAM:"):
+                table = "pfam_function"
+            elif gene_function_id.startswith("GO:"):
+                table = "go_function"
+            else:
+                return {
+                    "error": (
+                        "Unsupported gene function ID prefix. Supported prefixes:"
+                        " KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"
+                    ),
+                    "search_criteria": {
+                        "gene_function_ids": gene_function_ids,
+                        "max_records": max_records,
+                        "offset": offset,
+                    },
+                    "biosample_count": 0,
+                    "samples": [],
+                }
+
+            # Build filter criteria with new format
+            conditions = [
+                {
+                    "op": "==",
+                    "field": "id",
+                    "value": gene_function_id,
+                    "table": table,
+                }
+            ]
+
+            # Fetch records with essential fields only to avoid large responses
+            biosample_records = []
+
+            chunk_size = limit
+            chunk_offset = offset
+            total_count = 0
+            while True:
+                # If we're only looking for a single annotation we can stop at
+                # max_records
+                if (
+                    single_annotation
+                    and max_records
+                    and ((max_records - chunk_offset) < limit)
+                ):
+                    chunk_size = max_records - chunk_offset
+
+                # Handle pagination if max_records/offset is not set
+                data = fetch_functional_annotation_records(
+                    conditions=conditions, limit=chunk_size, offset=chunk_offset
+                )
+
+                total_count = data.get("count", 0)
+                biosample_records.extend(data.get("results", []))
+
+                if (
+                    single_annotation
+                    and max_records
+                    and (len(biosample_records) >= max_records)
+                ):
+                    break
+                if len(biosample_records) >= total_count:
+                    break
+
+                chunk_offset += chunk_size
+
+            # Process each biosample to extract data objects in the target format
+            for biosample in biosample_records:
+
+                biosample_id = biosample.get("id", "")
+                if pass_count > 0 and biosample_id not in tmp_sample_ids:
+                    continue
+                study_id = biosample.get("study_id", "")
+
+                # Extract activities and their outputs from omics_processing
+                activities = []
+                omics_processing = biosample.get("omics_processing", [])
+
+                for omics in omics_processing:
+                    # Extract omics_data entries as activities
+                    omics_data_list = omics.get("omics_data", [])
+
+                    for omics_data in omics_data_list:
+                        activity = {
+                            "activity_id": omics_data.get("id"),
+                            "activity_type": omics_data.get("type"),
+                            "analysis_category": omics_data.get(
+                                "metaproteomics_analysis_category"
+                            ),
+                            "informed_by": [
+                                {
+                                    "id": informed.get("id"),
+                                    "type": informed.get("annotations", {}).get("type"),
+                                    "omics_type": informed.get("annotations", {}).get(
+                                        "omics_type"
+                                    ),
+                                }
+                                for informed in omics_data.get("was_informed_by", [])
+                            ],
+                            "outputs": [
+                                {
+                                    "id": output.get("id"),
+                                    "name": output.get("name"),
+                                    "description": output.get("description"),
+                                    "file_type": output.get("file_type"),
+                                    "file_type_description": output.get(
+                                        "file_type_description"
+                                    ),
+                                    "file_size_bytes": output.get("file_size_bytes"),
+                                    "md5_checksum": output.get("md5_checksum"),
+                                    "url": output.get("url"),
+                                    "downloads": output.get("downloads"),
+                                    "selected": output.get("selected"),
+                                }
+                                for output in omics_data.get("outputs", [])
+                            ],
+                        }
+                        activities.append(activity)
+
+                sample_record = {
+                    "biosample_id": biosample_id,
+                    "study_id": study_id,
+                    "activities": activities,
+                }
+                returned_samples.append(sample_record)
+
+            # Set tmp_sample_ids to things that were seen in this pass
+            tmp_sample_ids = [bsmp["biosample_id"] for bsmp in returned_samples]
+            pass_count += 1
+        if max_records:
+            returned_samples = returned_samples[:max_records]
+        return {
+            "search_criteria": {
+                "gene_function_ids": gene_function_ids,
+                "max_records": max_records,
+                "offset": offset,
+            },
+            "biosample_count": len(returned_samples),
+            "samples": returned_samples,
+        }
+
+    except Exception as e:
+        return {
+            "error": (
+                f"Failed to fetch annotation records for '{gene_function_ids}': "
+                f"{str(e)}"
+            ),
+            "search_criteria": {
+                "gene_function_ids": gene_function_ids,
+                "max_records": max_records,
+                "offset": offset,
+            },
+            "biosample_count": 0,
+            "samples": [],
         }

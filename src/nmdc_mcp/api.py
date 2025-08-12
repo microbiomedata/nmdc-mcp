@@ -7,11 +7,12 @@
 # so that we are not duplicating code that already exists in the NMDC ecosystem.
 ################################################################################
 import json
+import os
 from typing import Any
 
 import requests
 
-from .constants import DEFAULT_PAGE_SIZE
+from .constants import BASE_URL, DEFAULT_PAGE_SIZE
 
 
 def fetch_nmdc_collection_records_paged(
@@ -344,61 +345,50 @@ def fetch_nmdc_biosample_records_paged(
 
 
 def fetch_functional_annotation_records(
-    filter_criteria: dict[str, Any] | None = None,
-    max_records: int | None = None,
+    filter_criteria: list[dict] | None = None,
+    conditions: list[dict] | None = None,
+    limit: int | None = None,
+    offset: int = 0,
     base_url: str = "https://data.microbiomedata.org/api/biosample/search",
-    projection: list[str] | None = None,
     verbose: bool = False,
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
     """
     Fetch biosample records that have specific functional annotations.
 
     This function queries the data.microbiomedata.org/api/biosample/search endpoint
     to retrieve biosample records that match functional annotation criteria.
-    Uses projection to limit returned fields and avoid large response sizes.
 
     Args:
-        filter_criteria: Filter criteria for the search (e.g., conditions array)
-        max_records: Maximum number of records to retrieve
+        filter_criteria: data object filter criteria for the search
+        conditions: list of conditions for which to search under
+        limit: Maximum number of records to retrieve
         base_url: Base URL for the biosample search API
-        projection: List of fields to include in response. If None, uses default fields
         verbose: Enable verbose logging
 
     Returns:
-        List of dictionaries containing biosample records with specified fields only
+        Dictionary containing the API response with biosample records
 
     Raises:
         requests.HTTPError: If the API request fails
     """
-    # Default projection if none provided - essential fields only to avoid large
-    # responses
-    if projection is None:
-        projection = [
-            "id",
-            "name",
-            "description",
-            "study_id",
-            "ecosystem",
-            "ecosystem_category",
-            "ecosystem_type",
-            "ecosystem_subtype",
-            "env_broad_scale",
-            "env_local_scale",
-            "env_medium",
-            "latitude",
-            "longitude",
-            "collection_date",
-        ]
+    if filter_criteria is None:
+        filter_criteria = []
+    if conditions is None:
+        conditions = []
 
-    # Prepare the request payload with projection to limit returned fields
-    payload: dict[str, Any] = {"data_object_filter": [], "projection": projection}
-    if filter_criteria:
-        payload.update(filter_criteria)
+    # Prepare the request payload
+    payload: dict[str, Any] = {
+        "data_object_filter": filter_criteria,
+        "conditions": conditions,
+    }
 
-    if max_records is not None:
-        url = f"{base_url}?limit={max_records}"
+    if limit is not None:
+        url = f"{base_url}?limit={limit}"
     else:
         url = base_url
+
+    if offset > 0:
+        url += f"&offset={offset}"
 
     if verbose:
         print(f"Fetching functional annotation records from: {url}")
@@ -409,14 +399,12 @@ def fetch_functional_annotation_records(
         response.raise_for_status()
 
         data = response.json()
-
-        # Extract records from response
-        records = data if isinstance(data, list) else data.get("results", [])
+        num_results = len(data.get("results", []))
 
         if verbose:
-            print(f"Retrieved {len(records)} functional annotation records")
+            print(f"Retrieved {num_results} functional annotation records")
 
-        return records
+        return data
 
     except requests.exceptions.RequestException as e:
         if verbose:
@@ -476,4 +464,40 @@ def fetch_study_data_objects(
     except requests.exceptions.RequestException as e:
         if verbose:
             print(f"Error fetching study data objects: {str(e)}")
+        raise
+
+
+def run_aggregation_queries(
+    query: dict, token: str, allow_broken_refs: bool = False
+) -> dict:
+    """
+    Run a MongoDB compatible aggregation query via the NMDC API. The endpoint
+    preforms find, aggregate, update, delete, and getMore commands for users
+    that have adequate permissions.
+
+    Args:
+        query: a dictionary that contains the MongoDB compatible query.
+        token: bearer token to authorize the request.
+        allow_broken_refs: boolean to determine if the query being run should
+            allow for broken references in the database.
+
+    Returns:
+        The API response
+
+    Raises:
+        requests.HTTPError: If the API request fails
+    """
+    env_token = os.getenv("TOKEN")
+    if env_token:
+        token = env_token
+    params = {"allow_broken_refs": allow_broken_refs}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    url = f"{BASE_URL}/queries:run"
+    try:
+        response = requests.post(url, params=params, data=query, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+    except requests.exceptions.RequestException as e:
+        print("An error calling the API occured:\n", e)
         raise

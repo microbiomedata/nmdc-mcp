@@ -15,3 +15,5 @@ htmlcov/
 
 # Virtual environments
 .venv
+.vscode
+.env

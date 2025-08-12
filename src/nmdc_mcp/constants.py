@@ -2,6 +2,9 @@
 Constants used across the NMDC MCP package.
 """
 
+BASE_URL = "https://api.microbiomedata.org"
+"""Production Runtime API base URL"""
+
 # API Configuration
 DEFAULT_PAGE_SIZE = 100
 """Default number of records to fetch per API page."""

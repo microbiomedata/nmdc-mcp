@@ -1,0 +1,4 @@
+dotenv
+python-mcp
+openai
+requests

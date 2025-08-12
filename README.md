@@ -18,7 +18,7 @@ You can use the CLI:
 nmdc-mcp
 ```
 
-Or import in your Python code:
+Or import in your Python code: # TODO incorrect instructions
 
 ```python
 from nmdc_mcp.main import create_mcp
@@ -26,6 +26,19 @@ from nmdc_mcp.main import create_mcp
 mcp = create_mcp()
 mcp.run()
 ```
+
+Or utilize the `nmdc_mcp.client`. This client uses OpenAI API and assumes you have `API_KEY` set in a .env file in the root directory of this repo. The `BASE_URL` and `MODEL` are also customizable in .env. For PNNL staff that want to run via this client - the `BASE_URL` and `MODEL` are specific. Contact Olivia Hess if you need help setting these values up.
+
+```bash
+uv run 'path/to/nmdc_mcp/client.py' 'path/to/nmdc_mcp/main.py'
+```
+
+Or using python
+
+```bash
+python 'path/to/nmdc_mcp/client.py' 'path/to/nmdc_mcp/main.py'
+```
+
 
 ## Development
 
