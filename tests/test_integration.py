@@ -114,7 +114,7 @@ class TestNMDCIntegration(unittest.TestCase):
     def test_get_samples_by_annotation(self):
         """Simple test for get_samples_by_annotation with basic validation."""
         results = get_samples_by_annotation(
-            gene_function_ids=["KEGG.ORTHOLOGY:K00001"], max_records=1
+            gene_function_ids=["PFAM:PF00001"], max_records=1
         )
 
         # Basic validation

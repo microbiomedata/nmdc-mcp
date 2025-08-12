@@ -1590,9 +1590,11 @@ def fetch_and_filter_gff_by_pfam_domains(
 
         # Get actual bytes downloaded
         content_length = len(content_response.content)
-        was_truncated = (sample_bytes is not None and
-                        sample_bytes > 0 and
-                        content_length >= sample_bytes)
+        was_truncated = (
+            sample_bytes is not None
+            and sample_bytes > 0
+            and content_length >= sample_bytes
+        )
 
         # Step 3: Parse and filter GFF content
         content = content_response.text
