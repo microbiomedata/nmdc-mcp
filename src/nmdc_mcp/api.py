@@ -7,11 +7,12 @@
 # so that we are not duplicating code that already exists in the NMDC ecosystem.
 ################################################################################
 import json
-from typing import Any
 import os
+from typing import Any
+
 import requests
 
-from .constants import DEFAULT_PAGE_SIZE, BASE_URL
+from .constants import BASE_URL, DEFAULT_PAGE_SIZE
 
 
 def fetch_nmdc_collection_records_paged(
@@ -344,13 +345,13 @@ def fetch_nmdc_biosample_records_paged(
 
 
 def fetch_functional_annotation_records(
-    filter_criteria: list[dict] = [],
-    conditions: list[dict] = [],
+    filter_criteria: list[dict] | None = None,
+    conditions: list[dict] | None = None,
     limit: int | None = None,
     offset: int = 0,
     base_url: str = "https://data.microbiomedata.org/api/biosample/search",
     verbose: bool = False,
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
     """
     Fetch biosample records that have specific functional annotations.
 
@@ -365,11 +366,15 @@ def fetch_functional_annotation_records(
         verbose: Enable verbose logging
 
     Returns:
-        List of dictionaries containing biosample records
+        Dictionary containing the API response with biosample records
 
     Raises:
         requests.HTTPError: If the API request fails
     """
+    if filter_criteria is None:
+        filter_criteria = []
+    if conditions is None:
+        conditions = []
 
     # Prepare the request payload
     payload: dict[str, Any] = {
@@ -466,12 +471,15 @@ def run_aggregation_queries(
     query: dict, token: str, allow_broken_refs: bool = False
 ) -> dict:
     """
-    Run a MongoDB compatible aggregation query via the NMDC API. The endpoint preforms find, aggregate, update, delete, and getMore commands for users that have adequate permissions.
+    Run a MongoDB compatible aggregation query via the NMDC API. The endpoint
+    preforms find, aggregate, update, delete, and getMore commands for users
+    that have adequate permissions.
 
     Args:
         query: a dictionary that contains the MongoDB compatible query.
         token: bearer token to authorize the request.
-        allow_broken_refs: boolean to determine if the query being run should allow for broken references in the database.
+        allow_broken_refs: boolean to determine if the query being run should
+            allow for broken references in the database.
 
     Returns:
         The API response
@@ -479,10 +487,9 @@ def run_aggregation_queries(
     Raises:
         requests.HTTPError: If the API request fails
     """
-    if os.getenv("TOKEN"):
-        token = os.getenv("TOKEN")
-    else:
-        token = token
+    env_token = os.getenv("TOKEN")
+    if env_token:
+        token = env_token
     params = {"allow_broken_refs": allow_broken_refs}
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     url = f"{BASE_URL}/queries:run"
@@ -493,3 +500,4 @@ def run_aggregation_queries(
 
     except requests.exceptions.RequestException as e:
         print("An error calling the API occured:\n", e)
+        raise

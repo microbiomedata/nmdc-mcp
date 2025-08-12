@@ -27,6 +27,9 @@ dynamic = [ "version" ]
 dependencies = [
     "fastmcp>=2.7.1",
     "requests>=2.32.4",
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "mcp>=1.0.0",
 ]
 
 [build-system]
@@ -116,7 +119,8 @@ disallow_untyped_defs = false
 [tool.deptry.package_module_name_map]
 pytest_asyncio = "pytest-asyncio"
 pytest_cov = "pytest-cov"
+dotenv = "python-dotenv"
 
 [tool.deptry.per_rule_ignores]
-DEP001 = ["nmdc_mcp"]  # Allow self-imports
-DEP002 = ["black", "ruff", "mypy", "pytest", "pytest-asyncio", "pytest-cov", "hatch-vcs", "hatchling", "twine", "types-requests"]  # Dev deps not in main code
+DEP001 = ["nmdc_mcp", "dotenv"]  # Allow self-imports and dotenv mapping issue
+DEP002 = ["black", "ruff", "mypy", "pytest", "pytest-asyncio", "pytest-cov", "hatch-vcs", "hatchling", "twine", "types-requests", "python-dotenv"]  # Dev deps not in main code and dotenv mapping issue

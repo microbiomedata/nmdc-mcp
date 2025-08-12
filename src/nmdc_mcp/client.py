@@ -1,18 +1,17 @@
 import asyncio
-from typing import Optional
-from contextlib import AsyncExitStack
-
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-import openai
-from openai import AsyncOpenAI
+import json
+import logging
 import os
 import sys
-import logging
-import json
+from contextlib import AsyncExitStack
+
+import openai
+from dotenv import load_dotenv
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from openai import AsyncOpenAI
 
 logging.basicConfig(level=logging.INFO)
-from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
@@ -26,9 +25,9 @@ client = openai.OpenAI(api_key=API_KEY, base_url=BASE_URL)
 class MCPClient:
     def __init__(self):
         # Initialize session and client objects
-        self.session: Optional[ClientSession] = None
+        self.session: ClientSession | None = None
         self.exit_stack = AsyncExitStack()
-        if API_KEY == None:
+        if API_KEY is None:
             raise Exception("API_KEY must be set in .env file.")
         self.client = AsyncOpenAI(base_url=BASE_URL, api_key=API_KEY)
         self.messages = []

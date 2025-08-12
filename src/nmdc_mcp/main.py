@@ -39,7 +39,13 @@ mcp: FastMCP = FastMCP(
         "NMDC (National Microbiome Data Collaborative) API tools for accessing "
         "microbiome data, biosamples, studies, and functional annotations. "
         "Provides access to genomic data objects, PFAM domain analysis, and "
-        "ecosystem-based sample searches."
+        "ecosystem-based sample searches.\n\n"
+        "COMMON WORKFLOW: To find genomic locations of PFAM domains:\n"
+        "1. Use get_samples_by_annotation to find samples with the domains "
+        "(returns complete data including GFF file IDs)\n"
+        "2. Use fetch_and_filter_gff_by_pfam_domains with a GFF data_object_id "
+        "from step 1 to see genomic coordinates\n\n"
+        "The first tool returns everything needed - avoid additional biosample lookups."
     ),
 )
 
@@ -47,11 +53,12 @@ mcp: FastMCP = FastMCP(
 mcp.tool(
     fetch_and_filter_gff_by_pfam_domains,
     description=(
-        "Use this tool when users want to analyze a specific GFF annotation file "
-        "for PFAM protein domains. Given a data object ID and list of PFAM "
-        "domains, this tool downloads the GFF file content and filters for "
-        "annotations containing those domains. Perfect for analyzing functional "
-        "annotations in genomic data."
+        "Use this tool to analyze GFF files for PFAM domains and show genomic "
+        "locations. Use AFTER get_samples_by_annotation to get the actual gene "
+        "coordinates and genomic context. Takes a data_object_id from the "
+        "previous search results and downloads the entire GFF file by default "
+        "to show specific gene annotations containing the PFAM domains. Only "
+        "use sample_bytes parameter if you specifically need to limit download size."
     ),
 )
 mcp.tool(
@@ -165,8 +172,15 @@ mcp.tool(
 mcp.tool(
     get_samples_by_annotation,
     description=(
-        "Use this tool to find biosamples based on specific annotation criteria. "
-        "Returns biosample IDs and metadata matching the provided annotations."
+        "Use this tool to find biosamples with specific functional annotations. "
+        "Returns COMPLETE biosample records including all data objects (GFF files, "
+        "protein files, etc.) with their IDs and URLs. ALWAYS set max_records to "
+        "match the user's request (e.g., if they ask for '1 sample' or 'a sample', "
+        "set max_records=1). Use max_records, NOT limit, to control how many samples "
+        "to return. Required formats: PFAM domains use 'PFAM:PF04183', KEGG use "
+        "'KEGG.ORTHOLOGY:K00001', COG use 'COG:COG0001', GO use 'GO:GO0000001'. "
+        "When users want genomic locations of domains, use this first to find samples, "
+        "then use fetch_and_filter_gff_by_pfam_domains with a GFF data_object_id from the results."
     ),
 )
 

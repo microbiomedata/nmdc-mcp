@@ -11,13 +11,13 @@ from typing import Any
 import requests
 
 from .api import (
+    fetch_functional_annotation_records,
     fetch_nmdc_biosample_records_paged,
     fetch_nmdc_collection_names,
     fetch_nmdc_collection_records_paged,
     fetch_nmdc_collection_stats,
     fetch_nmdc_entities_by_ids_with_projection,
     fetch_nmdc_entity_by_id,
-    fetch_functional_annotation_records,
     fetch_nmdc_entity_by_id_with_projection,
 )
 from .constants import (
@@ -179,7 +179,8 @@ def get_data_objects_by_pfam_domains(
     output file metadata.
 
     Args:
-        # TODO - why does the description ask for no PFAM prefix, but the code puts the PFAM prefix in?
+        # TODO - why does the description ask for no PFAM prefix, but the code
+        # puts the PFAM prefix in?
 
         pfam_domain_ids (list[str]): List of PFAM domain identifiers WITHOUT the
             "PFAM:" prefix. Examples: ["PF00005", "PF00072"] for ABC transporter
@@ -1478,7 +1479,7 @@ def fetch_and_filter_gff_by_pfam_domains(
     data_object_id: str,
     pfam_domain_ids: list[str],
     max_rows: int = 1000,
-    sample_bytes: int = 5000000,
+    sample_bytes: int | None = None,
 ) -> dict[str, Any]:
     """
     Fetch data object metadata and filter GFF content for specified PFAM domains.
@@ -1498,10 +1499,9 @@ def fetch_and_filter_gff_by_pfam_domains(
         max_rows (int): Maximum number of matching rows to return (default:
             1000).
             This prevents context overflow from very large result sets.
-        sample_bytes (int): Maximum bytes to download from GFF file (default:
-            5MB).
-            This prevents downloading entire large files when only samples are
-            needed.
+        sample_bytes (int, optional): Maximum bytes to download from GFF file.
+            If None (default), downloads the entire file. Use this to limit download
+            size for very large files when only a sample is needed.
 
     Returns:
         Dict[str, Any]: Structured response containing:
@@ -1579,10 +1579,10 @@ def fetch_and_filter_gff_by_pfam_domains(
                 },
             }
 
-        # Step 2: Download GFF content (with byte limiting)
+        # Step 2: Download GFF content (with optional byte limiting)
         logger.info(f"Downloading GFF content from: {download_url}")
         headers = {}
-        if sample_bytes > 0:
+        if sample_bytes is not None and sample_bytes > 0:
             headers["Range"] = f"bytes=0-{sample_bytes-1}"
 
         content_response = requests.get(download_url, headers=headers, timeout=30)
@@ -1590,7 +1590,9 @@ def fetch_and_filter_gff_by_pfam_domains(
 
         # Get actual bytes downloaded
         content_length = len(content_response.content)
-        was_truncated = content_length >= sample_bytes
+        was_truncated = (sample_bytes is not None and 
+                        sample_bytes > 0 and 
+                        content_length >= sample_bytes)
 
         # Step 3: Parse and filter GFF content
         content = content_response.text
@@ -1716,9 +1718,9 @@ def fetch_and_filter_gff_by_pfam_domains(
 def get_samples_by_annotation(
     gene_function_ids: list[str],
     max_records: int | None = None,
-    limit: int = 100, 
+    limit: int = 100,
     offset: int = 0,
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
     """
     Find biosamples that have specific functional annotations (gene functions).
 
@@ -1752,7 +1754,7 @@ def get_samples_by_annotation(
     """
 
     # If we are only looking for a single annotation, we can optimize the query
-    single_annotation = (len(gene_function_ids) == 1)
+    single_annotation = len(gene_function_ids) == 1
     logging.info(f"Single annotation optimization: {single_annotation}")
 
     try:
@@ -1775,14 +1777,19 @@ def get_samples_by_annotation(
             elif gene_function_id.startswith("GO:"):
                 table = "go_function"
             else:
-                return [
-                    {
-                        "error": (
-                            "Unsupported gene function ID prefix. Supported prefixes:"
-                            " KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"
-                        )
-                    }
-                ]
+                return {
+                    "error": (
+                        "Unsupported gene function ID prefix. Supported prefixes:"
+                        " KEGG.ORTHOLOGY:, COG:, PFAM:, GO:"
+                    ),
+                    "search_criteria": {
+                        "gene_function_ids": gene_function_ids,
+                        "max_records": max_records,
+                        "offset": offset,
+                    },
+                    "biosample_count": 0,
+                    "samples": [],
+                }
 
             # Build filter criteria with new format
             conditions = [
@@ -1801,8 +1808,13 @@ def get_samples_by_annotation(
             chunk_offset = offset
             total_count = 0
             while True:
-                # If we're only looking for a single annotation we can stop at max_records
-                if single_annotation and max_records and ((max_records - chunk_offset) < limit):
+                # If we're only looking for a single annotation we can stop at
+                # max_records
+                if (
+                    single_annotation
+                    and max_records
+                    and ((max_records - chunk_offset) < limit)
+                ):
                     chunk_size = max_records - chunk_offset
 
                 # Handle pagination if max_records/offset is not set
@@ -1813,13 +1825,16 @@ def get_samples_by_annotation(
                 total_count = data.get("count", 0)
                 biosample_records.extend(data.get("results", []))
 
-                if single_annotation and max_records and (len(biosample_records) >= max_records):
+                if (
+                    single_annotation
+                    and max_records
+                    and (len(biosample_records) >= max_records)
+                ):
                     break
                 if len(biosample_records) >= total_count:
                     break
 
                 chunk_offset += chunk_size
-
 
             # Process each biosample to extract data objects in the target format
             for biosample in biosample_records:
@@ -1888,7 +1903,7 @@ def get_samples_by_annotation(
             returned_samples = returned_samples[:max_records]
         return {
             "search_criteria": {
-                "gene_function_id": gene_function_id,
+                "gene_function_ids": gene_function_ids,
                 "max_records": max_records,
                 "offset": offset,
             },
@@ -1898,10 +1913,15 @@ def get_samples_by_annotation(
 
     except Exception as e:
         return {
-            "error": f"Failed to fetch annotation records for '{gene_function_id}': {str(e)}",
+            "error": (
+                f"Failed to fetch annotation records for '{gene_function_ids}': "
+                f"{str(e)}"
+            ),
             "search_criteria": {
-                "gene_function_id": gene_function_id,
+                "gene_function_ids": gene_function_ids,
                 "max_records": max_records,
                 "offset": offset,
             },
+            "biosample_count": 0,
+            "samples": [],
         }

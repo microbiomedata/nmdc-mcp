@@ -200,7 +200,9 @@ local/bacterial-pfam-clean.json: local/bacterial-pfam-search-extended.json
 
 
 # these all need individual refinement
-#claude-demo-all: clean-claude-demo local/claude-demo-studies-with-publications.txt local/claude-demo-biosample-data-objects.txt
+claude-demo-all: clean-claude-demo \
+local/claude-demo-studies-with-publications.txt local/claude-demo-pfam-search.txt local/claude-demo-gff-pfam-analysis.txt local/claude-demo-combined-pfam-workflow.txt
+
 
 clean-claude-demo:
 	rm -f local/claude-demo-*.txt
