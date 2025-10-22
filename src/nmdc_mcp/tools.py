@@ -110,24 +110,29 @@ def get_samples_by_ecosystem(
     max_records: int = 50,
 ) -> list[dict[str, Any]]:
     """
-    Fetch NMDC biosample records from a specific ecosystem category, type, or subtype.
-    According to ecosystem classification paths described and used by the JGI GOLD database 
-    system (which is what the NMDC ecosystem terms are inspired by/based on), there is a 
-    five level hierarchical classification system to describe the environment from which 
-    an environmental sample or an organism was collected.
-    
-    Five Levels: Ecosystem -> Ecosystem Category -> Ecosystem Type -> Ecosystem Subtype -> Specific Ecosystem
+    Fetch NMDC biosample records from a specific ecosystem category, type, or
+    subtype. According to ecosystem classification paths described and used by
+    the JGI GOLD database system (which is what the NMDC ecosystem terms are
+    inspired by/based on), there is a five level hierarchical classification
+    system to describe the environment from which an environmental sample or an
+    organism was collected.
+
+    Five Levels: Ecosystem -> Ecosystem Category -> Ecosystem Type ->
+    Ecosystem Subtype -> Specific Ecosystem
     Example Path: Environmental -> Aquatic -> Marine -> Oceanic -> Aphotic zone
 
-    Ecosystem categories represent divisions within the ecosystem based on specific characteristics 
-    of the environment from where an organism or sample is isolated. Examples of ecosystem
-    category are values like "Air", "Aquatic", "Terrestrial", "Host-associated", etc.
+    Ecosystem categories represent divisions within the ecosystem based on
+    specific characteristics of the environment from where an organism or
+    sample is isolated. Examples of ecosystem category are values like "Air",
+    "Aquatic", "Terrestrial", "Host-associated", etc.
 
-    Ecosystem types represent things having common characteristics within the Ecosystem Category.
-    Examples of ecosystem types are values like "Soil", "Marine", "Freshwater", "Respiratory system", etc.
+    Ecosystem types represent things having common characteristics within the
+    Ecosystem Category. Examples of ecosystem types are values like "Soil",
+    "Marine", "Freshwater", "Respiratory system", etc.
 
-    Ecosystem subtypes represent further subdivision of Ecosystem types into more distinct subtypes.
-    Examples of ecosystem subtypes are values like "Coastal zone", "Pelagic zone", etc.
+    Ecosystem subtypes represent further subdivision of Ecosystem types into
+    more distinct subtypes. Examples of ecosystem subtypes are values like
+    "Coastal zone", "Pelagic zone", etc.
 
     Args:
         ecosystem_category (str, optional): Category of ecosystem
