@@ -16,7 +16,7 @@ from typing import List, Optional
 
 def fetch_data_object_metadata(data_object_id: str) -> dict:
     """Fetch data object metadata from the runtime API."""
-    url = f"api-backup.microbiomedata.org/data_objects/{data_object_id}"
+    url = f"https://api-backup.microbiomedata.org/data_objects/{data_object_id}"
     print(f"🔍 Fetching metadata for data object: {data_object_id}")
 
     response = requests.get(url, headers={"Accept": "application/json"})

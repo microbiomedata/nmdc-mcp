@@ -44,7 +44,7 @@ def fetch_nmdc_collection_records_paged(
     Returns:
         A list of dictionaries, each representing a record from the collection.
     """
-    base_url: str = "api-backup.microbiomedata.org/nmdcschema"
+    base_url: str = "https://api-backup.microbiomedata.org/nmdcschema"
 
     all_records = []
     endpoint_url = f"{base_url}/{collection}"
@@ -94,7 +94,7 @@ def fetch_nmdc_collection_records_paged(
 
 def fetch_nmdc_entity_by_id(
     entity_id: str,
-    base_url: str = "api-backup.microbiomedata.org/nmdcschema",
+    base_url: str = "https://api-backup.microbiomedata.org/nmdcschema",
     verbose: bool = False,
 ) -> dict[str, Any]:
     """
@@ -128,7 +128,7 @@ def fetch_nmdc_entity_by_id(
 
 
 def fetch_nmdc_collection_names(
-    base_url: str = "api-backup.microbiomedata.org/nmdcschema",
+    base_url: str = "https://api-backup.microbiomedata.org/nmdcschema",
     verbose: bool = False,
 ) -> list[str]:
     """
@@ -161,7 +161,7 @@ def fetch_nmdc_collection_names(
 
 
 def fetch_nmdc_collection_stats(
-    base_url: str = "api-backup.microbiomedata.org/nmdcschema",
+    base_url: str = "https://api-backup.microbiomedata.org/nmdcschema",
     verbose: bool = False,
 ) -> dict[str, Any]:
     """
@@ -221,7 +221,7 @@ def fetch_nmdc_entity_by_id_with_projection(
     entity_id: str,
     collection: str,
     projection: str | list[str] | None = None,
-    base_url: str = "api-backup.microbiomedata.org/nmdcschema",
+    base_url: str = "https://api-backup.microbiomedata.org/nmdcschema",
     verbose: bool = False,
 ) -> dict[str, Any] | None:
     """
@@ -266,7 +266,7 @@ def fetch_nmdc_entities_by_ids_with_projection(
     collection: str,
     projection: str | list[str] | None = None,
     max_page_size: int = DEFAULT_PAGE_SIZE,
-    base_url: str = "api-backup.microbiomedata.org/nmdcschema",
+    base_url: str = "https://api-backup.microbiomedata.org/nmdcschema",
     verbose: bool = False,
 ) -> list[dict[str, Any]]:
     """
