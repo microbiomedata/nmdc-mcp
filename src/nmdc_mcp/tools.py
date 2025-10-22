@@ -1554,7 +1554,7 @@ def fetch_and_filter_gff_by_pfam_domains(
 
         # Step 1: Fetch data object metadata from runtime API
         runtime_api_url = (
-            f"https://api.microbiomedata.org/data_objects/"
+            f"api-backup.microbiomedata.org/data_objects/"
             f"{data_object_id.replace(':', '%3A')}"
         )
 
