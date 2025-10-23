@@ -75,16 +75,16 @@ def get_samples_in_elevation_range(
 
 
 def get_samples_within_lat_lon_bounding_box(
-    lower_lat: int, upper_lat: int, lower_lon: int, upper_lon: int
+    lower_lat: float, upper_lat: float, lower_lon: float, upper_lon: float
 ) -> list[dict[str, Any]]:
     """
     Fetch NMDC biosample records within a specified latitude and longitude bounding box.
 
     Args:
-        lower_lat (int): Lower latitude bound (exclusive).
-        upper_lat (int): Upper latitude bound (exclusive).
-        lower_lon (int): Lower longitude bound (exclusive).
-        upper_lon (int): Upper longitude bound (exclusive).
+        lower_lat (float): Lower latitude bound (exclusive).
+        upper_lat (float): Upper latitude bound (exclusive).
+        lower_lon (float): Lower longitude bound (exclusive).
+        upper_lon (float): Upper longitude bound (exclusive).
 
     Returns:
         List[Dict[str, Any]]: List of biosample records that fall within the specified
