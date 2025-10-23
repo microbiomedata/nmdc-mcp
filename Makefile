@@ -226,7 +226,7 @@ local/python-data-object-demo.json:
 local/curl-data-object-metadata.json:
 	@echo "🔍 Fetching data object metadata with download URL (curl)..."
 	curl -H "Accept: application/json" \
-		"https://api-backup.microbiomedata.org/data_objects/nmdc%3Adobj-11-wcxahg62" \
+		"https://api.microbiomedata.org/data_objects/nmdc%3Adobj-11-wcxahg62" \
 		| jq '.' > $@
 
 # Step 2: Download content from resolved URL (sample first 1MB for demonstration)
