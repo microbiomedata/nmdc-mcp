@@ -30,13 +30,13 @@ mcp.run()
 Or utilize the `nmdc_mcp.client`. This client uses OpenAI API and assumes you have `API_KEY` set in a .env file in the root directory of this repo. The `BASE_URL` and `MODEL` are also customizable in .env. For PNNL staff that want to run via this client - the `BASE_URL` and `MODEL` are specific. Contact Olivia Hess if you need help setting these values up.
 
 ```bash
-uv run 'path/to/nmdc_mcp/client.py' 'path/to/nmdc_mcp/main.py'
+uv run 'path/to/client/client.py' 'path/to/nmdc_mcp/main.py'
 ```
 
 Or using python
 
 ```bash
-python 'path/to/nmdc_mcp/client.py' 'path/to/nmdc_mcp/main.py'
+python 'path/to/client/client.py' 'path/to/nmdc_mcp/main.py'
 ```
 
 

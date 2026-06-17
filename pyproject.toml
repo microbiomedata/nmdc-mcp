@@ -61,7 +61,14 @@ dev = [
     "hatch-vcs>=0.5.0",
     "hatchling>=1.27.0",
     # Type stubs
-    "types-requests>=2.32.4.20250611",
+    "types-requests>=2.32.4.20250611",   
+]
+
+client = [
+    # Client dependencies
+    "dotenv==0.9.9",
+    "python-mcp==1.0.1",
+    "openai==1.99.5"
 ]
 
 [project.urls]
